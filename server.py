@@ -476,18 +476,35 @@ app.config.update(
 )
 
 
-def start_runtime_services():
+_runtime_services_lock = threading.Lock()
+_runtime_services_started = False
 
-    if os.environ.get(
-        "DISCORD_AUTOSTART",
-        "true"
-    ).lower() == "true":
-        discord_bridge.start()
+
+def start_runtime_services():
+    """Start Discord only after Gunicorn has exposed the HTTP application."""
+    global _runtime_services_started
+
+    if _runtime_services_started:
+        return
+
+    with _runtime_services_lock:
+        if _runtime_services_started:
+            return
+
+        _runtime_services_started = True
+        if os.environ.get(
+            "DISCORD_AUTOSTART",
+            "true"
+        ).lower() == "true":
+            discord_bridge.start()
 
 
 # Gunicorn importe ce module au démarrage : le bot se lance également
 # en production, avec un seul worker configuré dans render.yaml.
-start_runtime_services()
+@app.before_request
+def boot_runtime_services_after_http_startup():
+    """The first Render health check starts the bot without blocking Flask."""
+    start_runtime_services()
 
 
 # ============================================================
