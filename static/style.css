@@ -599,6 +599,8 @@ textarea {
 
     scroll-behavior:
         smooth;
+
+    -webkit-overflow-scrolling: touch;
 }
 
 
@@ -2181,6 +2183,8 @@ textarea::placeholder {
         background: rgba(33,33,33,.92);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
+        padding-top: env(safe-area-inset-top);
+        height: calc(60px + env(safe-area-inset-top));
     }
 
 

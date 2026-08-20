@@ -21,6 +21,8 @@ services:
         value: "true"
       - key: DISCORD_AUTOSTART
         value: "true"
+      - key: DISCORD_RESPONSE_TIMEOUT_SECONDS
+        value: "240"
       - key: DISCORD_TOKEN
         sync: false
       - key: DISCORD_CATEGORY_ID

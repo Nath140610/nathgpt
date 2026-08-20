@@ -49,6 +49,10 @@ class DiscordBridge:
         self.token = os.environ.get("DISCORD_TOKEN", "").strip()
         self.category_id = int(os.environ.get("DISCORD_CATEGORY_ID", DEFAULT_CATEGORY_ID))
         self.target_bot_id = int(os.environ.get("DISCORD_TARGET_BOT_ID", DEFAULT_TARGET_BOT_ID))
+        self.response_timeout = max(
+            30,
+            int(os.environ.get("DISCORD_RESPONSE_TIMEOUT_SECONDS", "240"))
+        )
         self.store_path = data_dir / "discord_conversations.json"
         self.image_store_path = data_dir / "discord_image_messages.json"
         self._lock = threading.RLock()
@@ -125,6 +129,14 @@ class DiscordBridge:
             with self._lock:
                 self._jobs.pop(job_id, None)
             raise
+
+        timeout_timer = threading.Timer(
+            self.response_timeout,
+            self._timeout_job,
+            args=(job_id,)
+        )
+        timeout_timer.daemon = True
+        timeout_timer.start()
 
         return job_id
 
@@ -359,6 +371,25 @@ class DiscordBridge:
     def _forget_job(self, job_id):
         with self._lock:
             self._jobs.pop(job_id, None)
+
+    def _timeout_job(self, job_id):
+        with self._lock:
+            job = self._jobs.get(job_id)
+
+            if not job or job_id not in self._channel_jobs.values():
+                return
+
+        self._publish(
+            job_id,
+            {
+                "type": "error",
+                "message": (
+                    "Le bot Discord n'a pas donné de résultat final. "
+                    "Réessaie dans quelques instants."
+                ),
+            },
+            final=True,
+        )
 
     def _load_conversations(self):
         try:
