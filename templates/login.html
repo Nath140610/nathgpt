@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - NathGPT</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-card">
+        <img src="/logo.png" class="auth-logo" alt="Logo NathGPT">
+        <h1>Connexion</h1>
+        <p class="subtitle">Connecte-toi à NathGPT</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <label>Pseudo</label>
+            <input
+                type="text"
+                name="username"
+                placeholder="Ton pseudo"
+                autocomplete="username"
+                required
+            >
+
+            <label>Mot de passe</label>
+            <input
+                type="password"
+                name="password"
+                placeholder="Ton mot de passe"
+                autocomplete="current-password"
+                required
+            >
+
+            <button type="submit" class="primary-button">Se connecter</button>
+        </form>
+
+        <p class="auth-bottom">
+            Pas encore de compte ?
+            <a href="{{ url_for('register') }}">Créer un compte</a>
+        </p>
+    </div>
+</body>
+</html>

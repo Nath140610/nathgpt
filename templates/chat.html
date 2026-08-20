@@ -1,0 +1,3729 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NathGPT</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body class="chat-page">
+
+<div class="app">
+
+    <!-- ===================================================== -->
+    <!-- SIDEBAR -->
+    <!-- ===================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <img src="/logo.png" alt="NathGPT">
+            <span>NathGPT</span>
+        </div>
+
+        <button
+            class="new-chat"
+            onclick="newChat()"
+        >
+            ＋ Nouvelle discussion
+        </button>
+
+        <div class="history">
+
+            <div class="history-title">
+                Discussions
+            </div>
+
+            <div id="historyList"></div>
+
+        </div>
+
+        <div class="account-box">
+
+            <div class="account-avatar">
+                {{ username[0]|upper }}
+            </div>
+
+            <div class="account-details">
+                <strong>{{ username }}</strong>
+                <span>Connecté</span>
+            </div>
+
+            <a
+                href="{{ url_for('logout') }}"
+                class="logout-button"
+                title="Se déconnecter"
+            >
+                ↪
+            </a>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ===================================================== -->
+    <!-- MAIN -->
+    <!-- ===================================================== -->
+
+    <main class="main">
+
+        <div class="topbar">
+
+            <div class="mobile-brand">
+                <img src="/logo.png" alt="NathGPT">
+                <span>NathGPT</span>
+            </div>
+
+            <button
+                class="mobile-new-chat"
+                type="button"
+                onclick="newChat()"
+                aria-label="Nouvelle discussion"
+            >
+                +
+            </button>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- CONVERSATION -->
+        <!-- ================================================= -->
+
+        <div
+            class="conversation"
+            id="conversation"
+        >
+
+            <div
+                class="welcome"
+                id="welcome"
+            >
+
+                <img
+                    src="/logo.png"
+                    class="welcome-logo"
+                    alt="NathGPT"
+                >
+
+                <h1>
+                    Comment puis-je vous aider ?
+                </h1>
+
+                <p>
+                    Posez une question à NathGPT
+                </p>
+
+            </div>
+
+            <div
+                class="message-container"
+                id="messages"
+            ></div>
+
+        </div>
+
+
+        <!-- ================================================= -->
+        <!-- INPUT -->
+        <!-- ================================================= -->
+
+        <div class="input-area">
+
+            <div class="input-wrapper">
+
+                <div class="input-box">
+
+                    <button
+                        class="plus-button"
+                        type="button"
+                        onclick="document.getElementById('referenceImages').click()"
+                        aria-label="Ajouter des images de référence"
+                    >
+                        ＋
+                    </button>
+
+                    <input
+                        id="referenceImages"
+                        class="reference-images-input"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        multiple
+                    >
+
+                    <textarea
+                        id="messageInput"
+                        rows="1"
+                        placeholder="Posez une question..."
+                    ></textarea>
+
+                    <button
+                        class="send-button"
+                        id="sendButton"
+                        onclick="sendMessage()"
+                        disabled
+                    >
+                        ↑
+                    </button>
+
+                </div>
+
+                <div
+                    class="reference-preview"
+                    id="referencePreview"
+                    aria-live="polite"
+                ></div>
+
+                <div class="footer-text">
+                    NathGPT peut faire des erreurs.
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<script>
+
+/* ========================================================= */
+/* ELEMENTS */
+/* ========================================================= */
+
+const input =
+    document.getElementById("messageInput");
+
+const sendButton =
+    document.getElementById("sendButton");
+
+const messages =
+    document.getElementById("messages");
+
+const welcome =
+    document.getElementById("welcome");
+
+const conversation =
+    document.getElementById("conversation");
+
+const historyList =
+    document.getElementById("historyList");
+
+const referenceImagesInput =
+    document.getElementById("referenceImages");
+
+const referencePreview =
+    document.getElementById("referencePreview");
+
+
+let constellationAnimationFrame = null;
+
+let imageRevealAnimationFrame = null;
+
+let constellationResizeHandler = null;
+
+let currentImagePrompt = "";
+
+let currentConversationId = createConversationId();
+
+let shouldRestoreLastConversation = true;
+
+let activeDiscordStream = null;
+
+let isDiscordTurnActive = false;
+
+let currentTurnIsImage = false;
+
+let remoteGenerationStatus = null;
+
+let remoteGenerationPercent = null;
+
+let selectedReferenceImages = [];
+
+let generationStartedAt = 0;
+
+let learnedGenerationDuration = getLearnedGenerationDuration();
+
+
+/* ========================================================= */
+/* INPUT */
+/* ========================================================= */
+
+input.addEventListener(
+    "input",
+    function () {
+
+        this.style.height = "auto";
+
+        this.style.height =
+            Math.min(
+                this.scrollHeight,
+                180
+            ) + "px";
+
+        sendButton.disabled =
+            isDiscordTurnActive ||
+            this.value.trim() === "";
+
+    }
+);
+
+
+referenceImagesInput.addEventListener(
+    "change",
+    function () {
+
+        const files = Array.from(this.files || []);
+
+        if (files.length > 4) {
+            addAssistantMessage("Tu peux ajouter jusqu'à 4 images de référence.");
+            this.value = "";
+            return;
+        }
+
+
+        selectedReferenceImages = files;
+        renderReferencePreview();
+    }
+);
+
+
+input.addEventListener(
+    "keydown",
+    function (event) {
+
+        if (
+            event.key === "Enter" &&
+            !event.shiftKey
+        ) {
+
+            event.preventDefault();
+
+            sendMessage();
+
+        }
+
+    }
+);
+
+
+/* ========================================================= */
+/* SEND MESSAGE */
+/* ========================================================= */
+
+function sendMessage() {
+
+    const text =
+        input.value.trim();
+
+    if (!text) {
+        return;
+    }
+
+
+    const referenceImages = selectedReferenceImages;
+
+    rememberActiveConversation();
+
+
+    welcome.style.display =
+        "none";
+
+
+    const message =
+        document.createElement("div");
+
+    message.className =
+        "user-message";
+
+
+    const bubble =
+        document.createElement("div");
+
+    bubble.className =
+        "user-bubble";
+
+    bubble.textContent =
+        text;
+
+
+    message.appendChild(
+        bubble
+    );
+
+    messages.appendChild(
+        message
+    );
+
+
+    if (
+        historyList.children.length === 0
+    ) {
+
+        const history =
+            document.createElement("div");
+
+        history.className =
+            "history-item";
+
+        history.textContent =
+            text;
+
+        historyList.appendChild(
+            history
+        );
+
+    }
+
+
+    input.value =
+        "";
+
+    input.style.height =
+        "auto";
+
+    sendButton.disabled =
+        true;
+
+
+    currentImagePrompt = text;
+
+    currentTurnIsImage =
+        isImageRequest(text) ||
+        referenceImages.length > 0;
+
+
+    clearReferenceImages();
+
+
+    if (
+        currentTurnIsImage
+    ) {
+
+        currentImagePrompt = text;
+
+        showImageGeneration();
+
+    }
+
+    else {
+
+        showThinking();
+
+        /*
+            TEMPORAIRE :
+            à supprimer lorsque l'IA texte
+            sera réellement connectée.
+        */
+
+        setTimeout(
+            () => {
+                if (!isDiscordTurnActive) {
+                    hideThinking();
+                }
+            },
+            5000
+        );
+
+    }
+
+
+    startDiscordTurn(text, referenceImages);
+
+
+    scrollToBottom();
+
+}
+
+
+/* ========================================================= */
+/* RELAIS DISCORD */
+/* ========================================================= */
+
+function createConversationId() {
+
+    if (window.crypto && crypto.randomUUID) {
+        return crypto.randomUUID().replace(/-/g, "");
+    }
+
+    return "conversation" + Date.now() + Math.random().toString(36).slice(2);
+}
+
+
+function rememberActiveConversation() {
+
+    localStorage.setItem(
+        "nathgpt-last-conversation",
+        currentConversationId
+    );
+}
+
+
+function getLearnedGenerationDuration() {
+
+    const saved = Number(localStorage.getItem("nathgpt-generation-duration"));
+
+    if (Number.isFinite(saved) && saved >= 8000 && saved <= 120000) {
+        return saved;
+    }
+
+    return 30000;
+}
+
+
+function recordGenerationDuration() {
+
+    if (!generationStartedAt) {
+        return;
+    }
+
+
+    const actualDuration = performance.now() - generationStartedAt;
+
+    if (actualDuration < 3000 || actualDuration > 180000) {
+        return;
+    }
+
+
+    learnedGenerationDuration = Math.round(
+        learnedGenerationDuration * .7 + actualDuration * .3
+    );
+
+    localStorage.setItem(
+        "nathgpt-generation-duration",
+        String(learnedGenerationDuration)
+    );
+}
+
+
+function estimatedGenerationProgress(elapsed, duration) {
+
+    if (elapsed <= duration) {
+        return Math.min(.92, (elapsed / duration) * .92);
+    }
+
+
+    const overrun = (elapsed - duration) / Math.max(duration, 1);
+
+    return Math.min(.99, .92 + .07 * (1 - Math.exp(-overrun * 1.8)));
+}
+
+
+async function startDiscordTurn(question, referenceImages = []) {
+
+    if (isDiscordTurnActive) {
+        return;
+    }
+
+
+    isDiscordTurnActive = true;
+
+    try {
+
+        const formData = new FormData();
+        formData.append("question", question);
+        formData.append("conversation_id", currentConversationId);
+
+        for (const image of referenceImages) {
+            formData.append("reference_images", image, image.name);
+        }
+
+
+        const response = await fetch("/api/discord/turn", {
+            method: "POST",
+            body: formData
+        });
+
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+            throw new Error(payload.error || "Connexion Discord impossible.");
+        }
+
+
+        listenForDiscordEvents(payload.job_id);
+        loadConversations();
+
+    }
+
+    catch (error) {
+
+        finishDiscordTurn();
+        hideThinking();
+        removeImageGeneration();
+        addAssistantMessage(error.message || "Connexion Discord impossible.");
+        loadConversations();
+    }
+}
+
+
+function listenForDiscordEvents(jobId) {
+
+    if (activeDiscordStream) {
+        activeDiscordStream.close();
+    }
+
+
+    const stream = new EventSource(
+        "/api/discord/jobs/" + encodeURIComponent(jobId) + "/events"
+    );
+
+
+    activeDiscordStream = stream;
+
+
+    stream.onmessage = function (event) {
+
+        const payload = JSON.parse(event.data);
+
+        if (payload.type === "status") {
+
+            if (currentTurnIsImage) {
+
+                if (!document.getElementById("imageGeneration")) {
+                    hideThinking();
+                    showImageGeneration();
+                }
+
+
+                updateImageGenerationProgress(payload.message);
+            }
+
+            else {
+
+                if (!document.getElementById("aiThinking")) {
+                    showThinking();
+                }
+
+                updateThinkingStatus();
+            }
+
+            return;
+
+        }
+
+
+        if (payload.type === "image") {
+
+            stream.close();
+            activeDiscordStream = null;
+            finishDiscordTurn();
+            loadConversations();
+            recordGenerationDuration();
+
+            if (!document.getElementById("imageGeneration")) {
+                hideThinking();
+                showImageGeneration();
+            }
+
+
+            receiveGeneratedImage(payload.url);
+            return;
+        }
+
+
+        stream.close();
+        activeDiscordStream = null;
+        finishDiscordTurn();
+        hideThinking();
+        removeImageGeneration();
+        addAssistantMessage(payload.message || "Réponse Discord vide.");
+        loadConversations();
+    };
+
+
+    stream.onerror = function () {
+
+        if (stream.readyState === EventSource.CLOSED && activeDiscordStream === stream) {
+            activeDiscordStream = null;
+            finishDiscordTurn();
+            hideThinking();
+            removeImageGeneration();
+            addAssistantMessage("La connexion au bot Discord a été interrompue.");
+            loadConversations();
+        }
+    };
+}
+
+
+function finishDiscordTurn() {
+
+    isDiscordTurnActive = false;
+
+    currentTurnIsImage = false;
+
+    sendButton.disabled = input.value.trim() === "";
+}
+
+
+function updateThinkingStatus() {
+
+    const label = document.querySelector("#aiThinking .thinking-text");
+
+    if (label) {
+        label.textContent = "NathGPT réfléchit...";
+    }
+}
+
+
+function updateImageGenerationProgress(message) {
+
+    remoteGenerationStatus = message;
+
+    const match = String(message).match(/\b(\d{1,3})\s*%/);
+
+    if (match) {
+        remoteGenerationPercent = Math.min(99, Math.max(0, Number(match[1])));
+    }
+}
+
+
+function addAssistantMessage(text) {
+
+    const message = document.createElement("div");
+    message.className = "assistant-message";
+
+    const bubble = document.createElement("div");
+    bubble.className = "assistant-bubble";
+    bubble.textContent = text;
+
+    message.appendChild(bubble);
+    messages.appendChild(message);
+    scrollToBottom();
+}
+
+
+function renderReferencePreview() {
+
+    referencePreview.innerHTML = "";
+
+    for (const image of selectedReferenceImages) {
+
+        const item = document.createElement("div");
+        item.className = "reference-preview-item";
+
+        const thumbnail = new Image();
+        thumbnail.src = URL.createObjectURL(image);
+        thumbnail.alt = "Image de référence";
+        thumbnail.onload = () => URL.revokeObjectURL(thumbnail.src);
+
+        const name = document.createElement("span");
+        name.textContent = image.name;
+
+        item.append(thumbnail, name);
+        referencePreview.appendChild(item);
+    }
+}
+
+
+function clearReferenceImages() {
+
+    selectedReferenceImages = [];
+    referenceImagesInput.value = "";
+    referencePreview.innerHTML = "";
+}
+
+
+/* ========================================================= */
+/* HISTORIQUE ENREGISTRE */
+/* ========================================================= */
+
+async function loadConversations() {
+
+    try {
+
+        const response = await fetch("/api/conversations");
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const payload = await response.json();
+        historyList.innerHTML = "";
+
+        for (const item of payload.conversations || []) {
+
+            const history = document.createElement("div");
+            history.className = "history-item";
+            history.textContent = item.title || "Nouvelle discussion";
+            history.title = history.textContent;
+            history.onclick = () => openConversation(item.id);
+            historyList.appendChild(history);
+        }
+
+
+        if (shouldRestoreLastConversation) {
+
+            shouldRestoreLastConversation = false;
+
+            const lastConversation = localStorage.getItem(
+                "nathgpt-last-conversation"
+            );
+
+            if (
+                lastConversation &&
+                (payload.conversations || []).some(
+                    item => item.id === lastConversation
+                )
+            ) {
+                openConversation(lastConversation);
+            }
+        }
+
+    }
+
+    catch (error) {
+        // L'historique est secondaire : le chat reste utilisable hors ligne.
+    }
+}
+
+
+async function openConversation(conversationId) {
+
+    if (isDiscordTurnActive) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            "/api/conversations/" + encodeURIComponent(conversationId)
+        );
+
+        if (!response.ok) {
+            return;
+        }
+
+
+        const payload = await response.json();
+        const savedConversation = payload.conversation;
+
+        currentConversationId = savedConversation.id;
+        rememberActiveConversation();
+        messages.innerHTML = "";
+        welcome.style.display = "none";
+
+        for (const item of savedConversation.messages || []) {
+
+            if (item.role === "user") {
+                addSavedUserMessage(item.content);
+            }
+
+            else if (item.image_url) {
+                addSavedImage(item.image_url);
+            }
+
+            else {
+                addAssistantMessage(item.content);
+            }
+        }
+
+
+        scrollToBottom();
+
+    }
+
+    catch (error) {
+        addAssistantMessage("Impossible de charger cette discussion.");
+    }
+}
+
+
+function addSavedUserMessage(text) {
+
+    const message = document.createElement("div");
+    message.className = "user-message";
+
+    const bubble = document.createElement("div");
+    bubble.className = "user-bubble";
+    bubble.textContent = text;
+
+    message.appendChild(bubble);
+    messages.appendChild(message);
+}
+
+
+function addSavedImage(imageUrl) {
+
+    const message = document.createElement("div");
+    message.className = "assistant-message generated-image-history";
+
+    const image = new Image();
+    image.className = "saved-generated-image";
+    image.src = imageUrl;
+    image.alt = "Image générée";
+    image.loading = "lazy";
+
+    message.appendChild(image);
+    appendGeneratedImageActions(message, imageUrl);
+    messages.appendChild(message);
+}
+
+
+function createGeneratedImageCard(imageUrl) {
+
+    const card = document.createElement("div");
+    card.className = "generated-image-card";
+
+    const image = new Image();
+    image.className = "saved-generated-image";
+    image.src = imageUrl;
+    image.alt = "Image générée";
+    image.loading = "lazy";
+
+    card.appendChild(image);
+    appendGeneratedImageActions(card, imageUrl);
+
+    return card;
+}
+
+
+function archiveCompletedImage() {
+
+    const generation = document.getElementById("imageGeneration");
+
+    if (
+        !generation ||
+        !generation.classList.contains("is-complete") ||
+        !generation.dataset.imageUrl
+    ) {
+        return;
+    }
+
+
+    generation.replaceWith(
+        createGeneratedImageCard(generation.dataset.imageUrl)
+    );
+}
+
+
+function showGeneratedImageActions(container, imageUrl) {
+
+    if (!container.querySelector(".generated-image-actions")) {
+        appendGeneratedImageActions(container, imageUrl);
+    }
+}
+
+
+function appendGeneratedImageActions(container, imageUrl) {
+
+    const actions = document.createElement("div");
+    actions.className = "generated-image-actions";
+
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.textContent = "✦ Modifier";
+    edit.onclick = () => showImageEditComposer(container);
+
+    const download = document.createElement("a");
+    download.href = imageUrl;
+    download.download = "nathgpt-image";
+    download.textContent = "⇩ Télécharger";
+    download.target = "_blank";
+    download.rel = "noopener";
+
+    const png = document.createElement("button");
+    png.type = "button";
+    png.textContent = "PNG";
+    png.title = "Rendre en PNG";
+    png.onclick = requestPngVersion;
+
+    actions.append(edit, download, png);
+    container.appendChild(actions);
+}
+
+
+function showImageEditComposer(container) {
+
+    const existing = container.querySelector(".image-edit-composer");
+
+    if (existing) {
+        existing.querySelector("textarea").focus();
+        return;
+    }
+
+
+    const composer = document.createElement("div");
+    composer.className = "image-edit-composer";
+
+    const editInput = document.createElement("textarea");
+    editInput.rows = 2;
+    editInput.placeholder = "Décris la modification à apporter...";
+
+    const submit = document.createElement("button");
+    submit.type = "button";
+    submit.textContent = "Envoyer la modification";
+    submit.onclick = () => {
+
+        const requestText = editInput.value.trim();
+
+        if (!requestText || isDiscordTurnActive) {
+            return;
+        }
+
+
+        composer.remove();
+        requestImageCommand(
+            'modify: "' + requestText.replace(/"/g, "'") + '"',
+            requestText
+        );
+    };
+
+    composer.append(editInput, submit);
+    container.appendChild(composer);
+    editInput.focus();
+}
+
+
+function requestPngVersion() {
+
+    requestImageCommand("png:", "Conversion PNG");
+}
+
+
+function requestImageCommand(command, promptText) {
+
+    if (isDiscordTurnActive) {
+        return;
+    }
+
+
+    currentTurnIsImage = true;
+    currentImagePrompt = promptText;
+    showImageGeneration();
+    startDiscordTurn(command);
+}
+
+
+/* ========================================================= */
+/* DETECTION IMAGE */
+/* ========================================================= */
+
+function isImageRequest(text) {
+
+    const message =
+        text
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(
+                /[\u0300-\u036f]/g,
+                ""
+            );
+
+
+    const keywords = [
+
+        "genere une image",
+        "genere l'image",
+        "genere image",
+
+        "cree une image",
+        "creer une image",
+        "cree l'image",
+        "creer l'image",
+
+        "fais une image",
+        "fait une image",
+
+        "dessine",
+        "dessine moi",
+        "dessine-moi",
+
+        "genere une photo",
+        "cree une photo",
+        "creer une photo",
+
+        "genere une illustration",
+        "cree une illustration",
+        "creer une illustration",
+
+        "image de",
+        "photo de",
+        "illustration de",
+
+        "generate an image",
+        "create an image",
+        "generate a picture",
+        "create a picture",
+        "draw me"
+
+    ];
+
+
+    return keywords.some(
+        keyword =>
+            message.includes(keyword)
+    );
+
+}
+
+
+/* ========================================================= */
+/* THINKING NORMAL */
+/* ========================================================= */
+
+function showThinking() {
+
+    hideThinking();
+
+
+    const thinking =
+        document.createElement("div");
+
+    thinking.id =
+        "aiThinking";
+
+    thinking.className =
+        "ai-thinking";
+
+
+    thinking.innerHTML = `
+
+        <div class="thinking-content">
+
+            <div class="thinking-orb">
+                <div class="orb-inner"></div>
+            </div>
+
+            <div class="thinking-text">
+
+                NathGPT réfléchit
+
+                <span class="thinking-dots">
+                    <span>.</span>
+                    <span>.</span>
+                    <span>.</span>
+                </span>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    messages.appendChild(
+        thinking
+    );
+
+    scrollToBottom();
+
+}
+
+
+function hideThinking() {
+
+    const thinking =
+        document.getElementById(
+            "aiThinking"
+        );
+
+    if (thinking) {
+        thinking.remove();
+    }
+
+}
+
+
+/* ========================================================= */
+/* IMAGE GENERATION */
+/* ========================================================= */
+
+function showImageGeneration() {
+
+    hideThinking();
+
+    archiveCompletedImage();
+
+    removeImageGeneration();
+
+
+    remoteGenerationStatus = null;
+
+    remoteGenerationPercent = null;
+
+    generationStartedAt = performance.now();
+
+
+    const generation =
+        document.createElement("div");
+
+    generation.id =
+        "imageGeneration";
+
+    generation.className =
+        "image-generation-container";
+
+
+    generation.innerHTML = `
+
+        <div class="image-generation-header">
+
+            <img
+                src="/logo.png"
+                class="image-generation-logo"
+                alt="NathGPT"
+            >
+
+            <div>
+
+                <div class="image-generation-title">
+                    NathGPT crée votre image
+                </div>
+
+                <div
+                    class="image-generation-status"
+                    id="imageGenerationStatus"
+                >
+                    Création des micro-étoiles...
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div
+            class="image-generation-frame is-generating"
+            id="imageGenerationFrame"
+        >
+
+            <div class="generation-grid" aria-hidden="true"></div>
+            <div class="generation-sweep" aria-hidden="true"></div>
+
+            <div class="generation-hud generation-hud-top" aria-hidden="true">
+                <span class="generation-live-dot"></span>
+                CANVAS NEURAL
+            </div>
+
+            <div class="generation-hud generation-hud-right" aria-hidden="true">
+                <span>SYNTHESE</span>
+                <span>EN DIRECT</span>
+            </div>
+
+            <div class="generation-orbits" aria-hidden="true">
+                <span class="generation-orbit generation-orbit-one"></span>
+                <span class="generation-orbit generation-orbit-two"></span>
+                <span class="generation-orbit generation-orbit-three"></span>
+            </div>
+
+            <canvas
+                id="constellationCanvas"
+            ></canvas>
+
+            <canvas
+                id="imageRevealCanvas"
+            ></canvas>
+
+            <canvas
+                id="orbZoomCanvas"
+            ></canvas>
+
+
+            <div
+                class="generation-orb"
+                id="generationOrb"
+            >
+                <div class="generation-orb-core"></div>
+                <div class="generation-orb-shine"></div>
+            </div>
+
+
+            <div
+                class="generation-stage-text"
+                id="generationStageText"
+            >
+                Génération en cours
+            </div>
+
+
+            <div
+                class="image-generation-percent"
+                id="imageGenerationPercent"
+            >
+                0%
+            </div>
+
+        </div>
+
+
+        <div
+            class="generation-progress"
+            id="generationProgress"
+        >
+            <div
+                class="generation-progress-bar"
+                id="generationProgressBar"
+            ></div>
+        </div>
+
+
+        <!--
+            BOUTON TEMPORAIRE.
+            Supprime ce bloc quand ton générateur
+            d'images sera réellement connecté.
+        -->
+
+        <div
+            class="generation-test-area"
+            id="generationTestArea"
+        >
+
+            <button
+                class="test-image-button"
+                onclick="testGeneratedImage()"
+            >
+                TEST avec BRE.png
+            </button>
+
+        </div>
+
+    `;
+
+
+    messages.appendChild(
+        generation
+    );
+
+
+    startConstellationAnimation();
+
+    scrollToBottom();
+
+}
+
+
+/* ========================================================= */
+/* TEST TEMPORAIRE */
+/* ========================================================= */
+
+function testGeneratedImage() {
+
+    receiveGeneratedImage(
+        "/BRE.png"
+    );
+
+}
+
+
+/* ========================================================= */
+/* PLUS TARD */
+/* ========================================================= */
+
+/*
+
+Quand ton générateur d'images sera connecté :
+
+receiveGeneratedImage(
+    data.image_url
+);
+
+*/
+
+
+/* ========================================================= */
+/* IMAGE RECUE */
+/* ========================================================= */
+
+function receiveGeneratedImage(imageUrl) {
+
+    const image =
+        new Image();
+
+
+    image.onload =
+        function () {
+
+            stopConstellationAnimation();
+
+
+            const generation = document.getElementById("imageGeneration");
+
+            if (generation) {
+                generation.dataset.imageUrl = imageUrl;
+            }
+
+
+            const testArea =
+                document.getElementById(
+                    "generationTestArea"
+                );
+
+
+            if (testArea) {
+
+                testArea.style.display =
+                    "none";
+
+            }
+
+
+            adaptFrameToImage(
+                image.naturalWidth,
+                image.naturalHeight
+            );
+
+
+            /*
+                On attend que la transition de taille
+                soit suffisamment avancée avant de lancer
+                le feu d'artifice.
+            */
+
+            setTimeout(
+                () => {
+
+                    simulateOrbZoomReveal(
+                        image,
+                        currentImagePrompt,
+                        imageUrl
+                    );
+
+                },
+                650
+            );
+
+        };
+
+
+    image.onerror =
+        function () {
+
+            const status =
+                document.getElementById(
+                    "imageGenerationStatus"
+                );
+
+
+            if (status) {
+
+                status.textContent =
+                    "Impossible de charger l'image.";
+
+            }
+
+        };
+
+
+    image.src =
+        imageUrl;
+
+}
+
+
+/* ========================================================= */
+/* ADAPTATION A LA TAILLE / AU RATIO DE L'IMAGE */
+/* ========================================================= */
+
+function adaptFrameToImage(
+    naturalWidth,
+    naturalHeight
+) {
+
+    const frame =
+        document.getElementById(
+            "imageGenerationFrame"
+        );
+
+
+    if (!frame) {
+        return;
+    }
+
+
+    const parentWidth =
+        frame.parentElement.clientWidth;
+
+
+    const maxWidth =
+        Math.min(
+            parentWidth,
+            760
+        );
+
+
+    const maxHeight =
+        window.innerHeight *
+        (
+            window.matchMedia("(max-width: 760px)").matches
+                ? 0.54
+                : 0.68
+        );
+
+
+    const ratio =
+        naturalWidth /
+        naturalHeight;
+
+
+    let width =
+        maxWidth;
+
+
+    let height =
+        width /
+        ratio;
+
+
+    if (
+        height >
+        maxHeight
+    ) {
+
+        height =
+            maxHeight;
+
+        width =
+            height *
+            ratio;
+
+    }
+
+
+    frame.style.width =
+        width + "px";
+
+
+    frame.style.height =
+        height + "px";
+
+
+    frame.style.marginLeft =
+        "auto";
+
+
+    frame.style.marginRight =
+        "auto";
+
+
+    const progress =
+        document.getElementById(
+            "generationProgress"
+        );
+
+
+    if (progress) {
+
+        progress.style.width =
+            width + "px";
+
+    }
+
+}
+
+
+/* ========================================================= */
+/* REVELATION FEU D'ARTIFICE - 5 SECONDES */
+/* ========================================================= */
+
+function simulateOrbZoomReveal(image, promptText, imageUrl) {
+
+    const frame =
+        document.getElementById(
+            "imageGenerationFrame"
+        );
+
+
+    const constellationCanvas =
+        document.getElementById(
+            "constellationCanvas"
+        );
+
+
+    const imageCanvas =
+        document.getElementById(
+            "imageRevealCanvas"
+        );
+
+
+    const zoomCanvas =
+        document.getElementById(
+            "orbZoomCanvas"
+        );
+
+
+    const status =
+        document.getElementById(
+            "imageGenerationStatus"
+        );
+
+
+    const stageText =
+        document.getElementById(
+            "generationStageText"
+        );
+
+
+    const percent =
+        document.getElementById(
+            "imageGenerationPercent"
+        );
+
+
+    const progressBar =
+        document.getElementById(
+            "generationProgressBar"
+        );
+
+
+    const orb =
+        document.getElementById(
+            "generationOrb"
+        );
+
+
+    if (
+        !frame ||
+        !imageCanvas ||
+        !zoomCanvas ||
+        !orb
+    ) {
+        return;
+    }
+
+
+    frame.classList.remove(
+        "is-generating"
+    );
+
+
+    frame.classList.add(
+        "is-revealing"
+    );
+
+
+    remoteGenerationStatus = null;
+
+    remoteGenerationPercent = null;
+
+
+    constellationCanvas.style.opacity =
+        "0";
+
+
+    imageCanvas.style.opacity =
+        "1";
+
+
+    zoomCanvas.style.opacity =
+        "1";
+
+
+    const width =
+        Math.max(
+            1,
+            Math.round(
+                frame.clientWidth
+            )
+        );
+
+
+    const height =
+        Math.max(
+            1,
+            Math.round(
+                frame.clientHeight
+            )
+        );
+
+
+    const dpr =
+        Math.min(
+            window.devicePixelRatio || 1,
+            2
+        );
+
+
+    imageCanvas.width =
+        width * dpr;
+
+
+    imageCanvas.height =
+        height * dpr;
+
+
+    imageCanvas.style.width =
+        width + "px";
+
+
+    imageCanvas.style.height =
+        height + "px";
+
+
+    const imageCtx =
+        imageCanvas.getContext(
+            "2d"
+        );
+
+
+    imageCtx.setTransform(
+        dpr,
+        0,
+        0,
+        dpr,
+        0,
+        0
+    );
+
+
+    zoomCanvas.width =
+        width * dpr;
+
+
+    zoomCanvas.height =
+        height * dpr;
+
+
+    zoomCanvas.style.width =
+        width + "px";
+
+
+    zoomCanvas.style.height =
+        height + "px";
+
+
+    const zoomCtx =
+        zoomCanvas.getContext(
+            "2d"
+        );
+
+
+    zoomCtx.setTransform(
+        dpr,
+        0,
+        0,
+        dpr,
+        0,
+        0
+    );
+
+
+    const sourceCanvas =
+        document.createElement(
+            "canvas"
+        );
+
+
+    sourceCanvas.width =
+        width;
+
+
+    sourceCanvas.height =
+        height;
+
+
+    const sourceCtx =
+        sourceCanvas.getContext(
+            "2d"
+        );
+
+
+    sourceCtx.drawImage(
+        image,
+        0,
+        0,
+        width,
+        height
+    );
+
+
+    const duration =
+        10000;
+
+
+    let startTime =
+        null;
+
+
+    /*
+        Les fragments sont de petits morceaux
+        de la question de l'utilisateur.
+    */
+
+    function buildPromptFragments(text) {
+
+        const cleaned =
+            (text || "")
+                .replace(/[.,!?;:()\[\]{}"']/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+
+
+        if (!cleaned) {
+            return [
+                "création",
+                "imagination",
+                "NathGPT"
+            ];
+        }
+
+
+        const words =
+            cleaned.split(" ");
+
+
+        const fragments =
+            [];
+
+
+        let index =
+            0;
+
+
+        while (
+            index < words.length &&
+            fragments.length < 12
+        ) {
+
+            const size =
+                1 +
+                Math.floor(
+                    Math.random() * 3
+                );
+
+
+            const part =
+                words
+                    .slice(
+                        index,
+                        index + size
+                    )
+                    .join(" ");
+
+
+            if (
+                part.length > 1
+            ) {
+                fragments.push(part);
+            }
+
+
+            index +=
+                size;
+
+        }
+
+
+        return fragments.length
+            ? fragments
+            : [cleaned];
+
+    }
+
+
+    const fragments =
+        buildPromptFragments(
+            promptText
+        );
+
+
+    /*
+        Etoiles visibles PENDANT le zoom.
+        Elles se trouvent dans le portail / la boule.
+    */
+
+    const portalStars =
+        [];
+
+
+    for (
+        let i = 0;
+        i < 210;
+        i++
+    ) {
+
+        portalStars.push({
+
+            angle:
+                Math.random() *
+                Math.PI *
+                2,
+
+            radius:
+                Math.sqrt(
+                    Math.random()
+                ),
+
+            size:
+                0.25 +
+                Math.random() *
+                0.75,
+
+            depth:
+                0.2 +
+                Math.random() *
+                0.8,
+
+            phase:
+                Math.random() *
+                Math.PI *
+                2,
+
+            opacity:
+                0.3 +
+                Math.random() *
+                0.7
+
+        });
+
+    }
+
+
+    const floatingTexts =
+        fragments.map(
+            (text, index) => ({
+
+                text,
+
+                angle:
+                    (
+                        index /
+                        Math.max(
+                            fragments.length,
+                            1
+                        )
+                    )
+                    *
+                    Math.PI *
+                    2
+                    +
+                    Math.random() *
+                    0.5,
+
+                radius:
+                    0.18 +
+                    Math.random() *
+                    0.65,
+
+                phase:
+                    Math.random() *
+                    Math.PI *
+                    2,
+
+                size:
+                    8 +
+                    Math.random() *
+                    4,
+
+                depth:
+                    0.45 +
+                    Math.random() *
+                    0.55
+
+            })
+        );
+
+
+    function clamp(value) {
+
+        return Math.min(
+            Math.max(
+                value,
+                0
+            ),
+            1
+        );
+
+    }
+
+
+    function easeInOutCubic(value) {
+
+        value =
+            clamp(value);
+
+
+        return value < 0.5
+            ? 4 *
+              value *
+              value *
+              value
+            : 1 -
+              Math.pow(
+                  -2 * value + 2,
+                  3
+              ) / 2;
+
+    }
+
+
+    function easeOutExpo(value) {
+
+        value =
+            clamp(value);
+
+
+        if (
+            value === 1
+        ) {
+            return 1;
+        }
+
+
+        return 1 -
+            Math.pow(
+                2,
+                -10 * value
+            );
+
+    }
+
+
+    const centerX =
+        width / 2;
+
+
+    const centerY =
+        height / 2;
+
+
+    const startRadius =
+        38;
+
+
+    const finalRadius =
+        Math.sqrt(
+            width * width +
+            height * height
+        ) * 0.64;
+
+
+    orb.classList.add(
+        "orb-portal-mode"
+    );
+
+
+    status.textContent =
+        "Image reçue — ouverture du noyau...";
+
+
+    stageText.textContent =
+        "Ouverture";
+
+
+    function drawPortalImage(
+        radius,
+        imageScale,
+        alpha
+    ) {
+
+        imageCtx.clearRect(
+            0,
+            0,
+            width,
+            height
+        );
+
+
+        imageCtx.save();
+
+
+        imageCtx.beginPath();
+
+
+        imageCtx.arc(
+            centerX,
+            centerY,
+            radius,
+            0,
+            Math.PI * 2
+        );
+
+
+        imageCtx.clip();
+
+
+        imageCtx.globalAlpha =
+            alpha;
+
+
+        const drawWidth =
+            width * imageScale;
+
+
+        const drawHeight =
+            height * imageScale;
+
+
+        imageCtx.drawImage(
+            sourceCanvas,
+            centerX -
+                drawWidth / 2,
+            centerY -
+                drawHeight / 2,
+            drawWidth,
+            drawHeight
+        );
+
+
+        /*
+            Léger voile lumineux sur les bords
+            de la boule pour donner l'impression
+            d'être à l'intérieur.
+        */
+
+        const vignette =
+            imageCtx.createRadialGradient(
+                centerX,
+                centerY,
+                radius * 0.40,
+                centerX,
+                centerY,
+                radius
+            );
+
+
+        vignette.addColorStop(
+            0,
+            "rgba(255,255,255,0)"
+        );
+
+
+        vignette.addColorStop(
+            0.72,
+            "rgba(110,140,255,0.02)"
+        );
+
+
+        vignette.addColorStop(
+            1,
+            "rgba(6,8,18,0.55)"
+        );
+
+
+        imageCtx.fillStyle =
+            vignette;
+
+
+        imageCtx.fillRect(
+            0,
+            0,
+            width,
+            height
+        );
+
+
+        imageCtx.restore();
+
+    }
+
+
+    function drawPortalStars(
+        elapsed,
+        radius,
+        portalAlpha,
+        zoomProgress
+    ) {
+
+        zoomCtx.clearRect(
+            0,
+            0,
+            width,
+            height
+        );
+
+
+        zoomCtx.save();
+
+
+        zoomCtx.beginPath();
+
+
+        zoomCtx.arc(
+            centerX,
+            centerY,
+            radius,
+            0,
+            Math.PI * 2
+        );
+
+
+        zoomCtx.clip();
+
+
+        /*
+            Quand on zoome, les étoiles donnent
+            l'impression de venir vers la caméra.
+        */
+
+        for (
+            const star
+            of portalStars
+        ) {
+
+            const travel =
+                1 +
+                zoomProgress *
+                (
+                    0.7 +
+                    star.depth * 2.6
+                );
+
+
+            const localRadius =
+                radius *
+                star.radius *
+                travel;
+
+
+            const angle =
+                star.angle +
+                Math.sin(
+                    elapsed * 0.00045 +
+                    star.phase
+                ) *
+                0.04;
+
+
+            const x =
+                centerX +
+                Math.cos(angle) *
+                localRadius;
+
+
+            const y =
+                centerY +
+                Math.sin(angle) *
+                localRadius;
+
+
+            const alpha =
+                portalAlpha *
+                star.opacity *
+                (
+                    1 -
+                    zoomProgress * 0.25
+                );
+
+
+            const size =
+                star.size *
+                (
+                    0.8 +
+                    star.depth *
+                    1.7 +
+                    zoomProgress * 1.2
+                );
+
+
+            const glow =
+                zoomCtx.createRadialGradient(
+                    x,
+                    y,
+                    0,
+                    x,
+                    y,
+                    Math.max(
+                        1.5,
+                        size * 4
+                    )
+                );
+
+
+            glow.addColorStop(
+                0,
+                `rgba(255,255,255,${alpha})`
+            );
+
+
+            glow.addColorStop(
+                0.35,
+                `rgba(170,200,255,${alpha * 0.35})`
+            );
+
+
+            glow.addColorStop(
+                1,
+                "rgba(90,120,255,0)"
+            );
+
+
+            zoomCtx.fillStyle =
+                glow;
+
+
+            zoomCtx.beginPath();
+
+
+            zoomCtx.arc(
+                x,
+                y,
+                Math.max(
+                    1.5,
+                    size * 4
+                ),
+                0,
+                Math.PI * 2
+            );
+
+
+            zoomCtx.fill();
+
+
+            zoomCtx.fillStyle =
+                `rgba(255,255,255,${alpha})`;
+
+
+            zoomCtx.beginPath();
+
+
+            zoomCtx.arc(
+                x,
+                y,
+                Math.max(
+                    0.25,
+                    size * 0.42
+                ),
+                0,
+                Math.PI * 2
+            );
+
+
+            zoomCtx.fill();
+
+        }
+
+
+        /*
+            Fragments de la question.
+            Ils restent subtils et disparaissent
+            avant l'image finale.
+        */
+
+        const textFade =
+            clamp(
+                1 -
+                Math.max(
+                    0,
+                    zoomProgress - 0.58
+                ) / 0.42
+            );
+
+
+        for (
+            const item
+            of floatingTexts
+        ) {
+
+            const orbit =
+                item.angle +
+                elapsed *
+                0.00006 *
+                (
+                    0.7 +
+                    item.depth
+                );
+
+
+            const textRadius =
+                radius *
+                item.radius *
+                (
+                    0.92 +
+                    zoomProgress *
+                    item.depth * 1.2
+                );
+
+
+            const x =
+                centerX +
+                Math.cos(orbit) *
+                textRadius;
+
+
+            const y =
+                centerY +
+                Math.sin(orbit) *
+                textRadius;
+
+
+            const alpha =
+                portalAlpha *
+                textFade *
+                0.68;
+
+
+            zoomCtx.save();
+
+
+            zoomCtx.globalAlpha =
+                alpha;
+
+
+            zoomCtx.font =
+                `${Math.round(item.size)}px Inter, system-ui, sans-serif`;
+
+
+            zoomCtx.textAlign =
+                "center";
+
+
+            zoomCtx.textBaseline =
+                "middle";
+
+
+            zoomCtx.shadowColor =
+                "rgba(110,145,255,0.55)";
+
+
+            zoomCtx.shadowBlur =
+                8;
+
+
+            zoomCtx.fillStyle =
+                "rgba(235,241,255,0.92)";
+
+
+            zoomCtx.fillText(
+                item.text,
+                x,
+                y
+            );
+
+
+            zoomCtx.restore();
+
+        }
+
+
+        zoomCtx.restore();
+
+
+        /*
+            Anneau du portail.
+        */
+
+        zoomCtx.save();
+
+
+        const ringAlpha =
+            portalAlpha *
+            clamp(
+                1 -
+                zoomProgress * 0.78
+            );
+
+
+        zoomCtx.strokeStyle =
+            `rgba(205,220,255,${ringAlpha * 0.82})`;
+
+
+        zoomCtx.lineWidth =
+            Math.max(
+                1,
+                2.2 -
+                zoomProgress
+            );
+
+
+        zoomCtx.shadowColor =
+            `rgba(110,145,255,${ringAlpha})`;
+
+
+        zoomCtx.shadowBlur =
+            16;
+
+
+        zoomCtx.beginPath();
+
+
+        zoomCtx.arc(
+            centerX,
+            centerY,
+            radius,
+            0,
+            Math.PI * 2
+        );
+
+
+        zoomCtx.stroke();
+
+
+        zoomCtx.restore();
+
+    }
+
+
+    function animate(timestamp) {
+
+        if (!startTime) {
+            startTime = timestamp;
+        }
+
+
+        const elapsed =
+            timestamp -
+            startTime;
+
+
+        const progress =
+            clamp(
+                elapsed /
+                duration
+            );
+
+
+        const percentValue =
+            92 + Math.round(
+                progress *
+                8
+            );
+
+
+        percent.textContent =
+            percentValue +
+            "%";
+
+
+        progressBar.style.width =
+            percentValue +
+            "%";
+
+
+        /*
+            0 → 1.6s : la boule se stabilise.
+            1.6 → 8.6s : zoom progressif dedans.
+            8.6 → 10s : image finale pleine.
+        */
+
+        const chargeProgress =
+            easeOutExpo(
+                elapsed /
+                1600
+            );
+
+
+        const zoomProgress =
+            easeInOutCubic(
+                (
+                    elapsed -
+                    1400
+                ) /
+                7200
+            );
+
+
+        const finalProgress =
+            easeInOutCubic(
+                (
+                    elapsed -
+                    8600
+                ) /
+                1400
+            );
+
+
+        const portalRadius =
+            startRadius +
+            (
+                finalRadius -
+                startRadius
+            ) *
+            zoomProgress;
+
+
+        const imageScale =
+            1.22 -
+            zoomProgress *
+            0.22;
+
+
+        const portalAlpha =
+            clamp(
+                chargeProgress *
+                (
+                    1 -
+                    finalProgress *
+                    0.70
+                )
+            );
+
+
+        drawPortalImage(
+            portalRadius,
+            imageScale,
+            Math.max(
+                0.18,
+                zoomProgress
+            )
+        );
+
+
+        drawPortalStars(
+            elapsed,
+            portalRadius,
+            portalAlpha,
+            zoomProgress
+        );
+
+
+        /*
+            La vraie boule DOM suit le début du zoom,
+            puis disparaît pour laisser le canvas
+            prendre toute la place.
+        */
+
+        if (
+            elapsed < 2400
+        ) {
+
+            const orbScale =
+                0.85 +
+                chargeProgress *
+                0.20 +
+                Math.sin(
+                    elapsed *
+                    0.018
+                ) *
+                0.025;
+
+
+            orb.style.opacity =
+                String(
+                    1 -
+                    zoomProgress *
+                    0.5
+                );
+
+
+            orb.style.top =
+                "50%";
+
+
+            orb.style.left =
+                "50%";
+
+
+            orb.style.transform =
+                `translate(-50%, -50%) scale(${orbScale})`;
+
+        }
+
+        else {
+
+            orb.style.opacity =
+                String(
+                    clamp(
+                        1 -
+                        (
+                            elapsed -
+                            2400
+                        ) /
+                        1400
+                    )
+                );
+
+        }
+
+
+        if (
+            elapsed < 1500
+        ) {
+
+            status.textContent =
+                "Le noyau se stabilise...";
+
+
+            stageText.textContent =
+                "Noyau";
+
+        }
+
+        else if (
+            elapsed < 4400
+        ) {
+
+            status.textContent =
+                "Zoom dans la constellation...";
+
+
+            stageText.textContent =
+                "Immersion";
+
+        }
+
+        else if (
+            elapsed < 7600
+        ) {
+
+            status.textContent =
+                "La demande prend forme dans les étoiles...";
+
+
+            stageText.textContent =
+                "Création";
+
+        }
+
+        else if (
+            elapsed < 9400
+        ) {
+
+            status.textContent =
+                "L'image émerge du noyau...";
+
+
+            stageText.textContent =
+                "Révélation";
+
+        }
+
+        else {
+
+            status.textContent =
+                "Finalisation de l'image...";
+
+
+            stageText.textContent =
+                "Finalisation";
+
+        }
+
+
+        if (
+            finalProgress > 0
+        ) {
+
+            imageCtx.save();
+
+
+            imageCtx.globalAlpha =
+                finalProgress;
+
+
+            imageCtx.globalCompositeOperation =
+                "source-over";
+
+
+            imageCtx.drawImage(
+                sourceCanvas,
+                0,
+                0,
+                width,
+                height
+            );
+
+
+            imageCtx.restore();
+
+
+            zoomCanvas.style.opacity =
+                String(
+                    1 -
+                    finalProgress
+                );
+
+        }
+
+
+        if (
+            progress < 1
+        ) {
+
+            imageRevealAnimationFrame =
+                requestAnimationFrame(
+                    animate
+                );
+
+        }
+
+        else {
+
+            imageCtx.clearRect(
+                0,
+                0,
+                width,
+                height
+            );
+
+
+            imageCtx.globalCompositeOperation =
+                "source-over";
+
+
+            imageCtx.globalAlpha =
+                1;
+
+
+            imageCtx.drawImage(
+                sourceCanvas,
+                0,
+                0,
+                width,
+                height
+            );
+
+
+            zoomCtx.clearRect(
+                0,
+                0,
+                width,
+                height
+            );
+
+
+            zoomCanvas.style.opacity =
+                "0";
+
+
+            frame.classList.remove(
+                "is-revealing"
+            );
+
+
+            frame.classList.add(
+                "is-complete"
+            );
+
+
+            orb.style.opacity =
+                "0";
+
+
+            status.textContent =
+                "Image générée";
+
+
+            stageText.textContent =
+                "Terminé";
+
+
+            percent.textContent =
+                "100%";
+
+
+            progressBar.style.width =
+                "100%";
+
+
+            showGeneratedImageActions(
+                frame.parentElement,
+                imageUrl
+            );
+
+
+            setTimeout(
+                () => {
+
+                    stageText.style.opacity =
+                        "0";
+
+
+                    percent.style.opacity =
+                        "0";
+
+                },
+                700
+            );
+
+
+            imageRevealAnimationFrame =
+                null;
+
+        }
+
+    }
+
+
+    imageRevealAnimationFrame =
+        requestAnimationFrame(
+            animate
+        );
+
+
+    scrollToBottom();
+
+}
+
+
+/* ========================================================= */
+/* CONSTELLATION D'ATTENTE */
+/* ========================================================= */
+
+function startConstellationAnimation() {
+
+    const canvas =
+        document.getElementById(
+            "constellationCanvas"
+        );
+
+
+    if (!canvas) {
+        return;
+    }
+
+
+    const frame =
+        canvas.parentElement;
+
+
+    const ctx =
+        canvas.getContext(
+            "2d"
+        );
+
+
+    const status =
+        document.getElementById(
+            "imageGenerationStatus"
+        );
+
+
+    const percent =
+        document.getElementById(
+            "imageGenerationPercent"
+        );
+
+
+    const progressBar =
+        document.getElementById(
+            "generationProgressBar"
+        );
+
+
+    const orb =
+        document.getElementById(
+            "generationOrb"
+        );
+
+
+    let width =
+        0;
+
+
+    let height =
+        0;
+
+
+    let start =
+        null;
+
+
+    const duration =
+        learnedGenerationDuration;
+
+
+    /*
+        Beaucoup plus d'étoiles,
+        beaucoup plus petites.
+    */
+
+    const starCount =
+        640;
+
+
+    const stars =
+        [];
+
+
+    function resize() {
+
+        width =
+            frame.clientWidth;
+
+
+        height =
+            frame.clientHeight;
+
+
+        const dpr =
+            Math.min(
+                window.devicePixelRatio || 1,
+                2
+            );
+
+
+        canvas.width =
+            width *
+            dpr;
+
+
+        canvas.height =
+            height *
+            dpr;
+
+
+        canvas.style.width =
+            width +
+            "px";
+
+
+        canvas.style.height =
+            height +
+            "px";
+
+
+        ctx.setTransform(
+            dpr,
+            0,
+            0,
+            dpr,
+            0,
+            0
+        );
+
+    }
+
+
+    resize();
+
+
+    constellationResizeHandler =
+        resize;
+
+
+    window.addEventListener(
+        "resize",
+        constellationResizeHandler
+    );
+
+
+    for (
+        let i = 0;
+        i < starCount;
+        i++
+    ) {
+
+        stars.push({
+
+            x:
+                Math.random(),
+
+            y:
+                Math.random(),
+
+            size:
+                0.18 +
+                Math.random() *
+                0.62,
+
+            glow:
+                0.8 +
+                Math.random() *
+                1.8,
+
+            phase:
+                Math.random() *
+                Math.PI *
+                2,
+
+            speed:
+                0.18 +
+                Math.random() *
+                0.55,
+
+            opacity:
+                0.28 +
+                Math.random() *
+                0.62,
+
+            /*
+                Environ 80% des étoiles forment
+                la boule. Les autres restent libres
+                dans tout le cadre.
+            */
+
+            attracted:
+                Math.random() < 0.80,
+
+            driftRadius:
+                4 +
+                Math.random() * 12,
+
+            angle:
+                Math.random() *
+                Math.PI *
+                2,
+
+            radius:
+                Math.sqrt(
+                    Math.random()
+                )
+                *
+                36
+
+        });
+
+    }
+
+
+    function animate(timestamp) {
+
+        if (!start) {
+            start = timestamp;
+        }
+
+
+        const elapsed =
+            timestamp -
+            start;
+
+
+        const rawProgress =
+            estimatedGenerationProgress(
+                elapsed,
+                duration
+            );
+
+
+        /*
+            Après 60 secondes,
+            on continue d'animer le ciel
+            sans bloquer à 100%.
+        */
+
+        const progress =
+            rawProgress;
+
+
+        ctx.clearRect(
+            0,
+            0,
+            width,
+            height
+        );
+
+
+        const cx =
+            width /
+            2;
+
+
+        const cy =
+            height /
+            2;
+
+
+        let gather =
+            Math.max(
+                (
+                    progress -
+                    0.25
+                )
+                /
+                0.75,
+                0
+            );
+
+
+        gather =
+            1 -
+            Math.pow(
+                1 -
+                gather,
+                3
+            );
+
+
+        const positions =
+            [];
+
+
+        stars.forEach(
+            star => {
+
+                const ox =
+                    star.x *
+                    width;
+
+
+                const oy =
+                    star.y *
+                    height;
+
+
+                const tx =
+                    cx +
+                    Math.cos(
+                        star.angle
+                    )
+                    *
+                    star.radius;
+
+
+                const ty =
+                    cy +
+                    Math.sin(
+                        star.angle
+                    )
+                    *
+                    star.radius;
+
+
+                const attraction =
+                    star.attracted
+                        ? gather
+                        : 0;
+
+
+                let x =
+                    ox +
+                    (
+                        tx -
+                        ox
+                    )
+                    *
+                    attraction;
+
+
+                let y =
+                    oy +
+                    (
+                        ty -
+                        oy
+                    )
+                    *
+                    attraction;
+
+
+                /*
+                    Les étoiles qui ne sont pas attirées
+                    continuent de flotter dans le cadre.
+                */
+
+                const freeStrength =
+                    star.attracted
+                        ? (
+                            1 -
+                            gather
+                          ) * 1.2
+                        : 1;
+
+
+                x +=
+                    Math.cos(
+                        timestamp *
+                        0.00045 *
+                        star.speed +
+                        star.phase
+                    )
+                    *
+                    star.driftRadius
+                    *
+                    freeStrength;
+
+
+                y +=
+                    Math.sin(
+                        timestamp *
+                        0.00055 *
+                        star.speed +
+                        star.phase
+                    )
+                    *
+                    star.driftRadius
+                    *
+                    freeStrength;
+
+
+                positions.push({
+                    x,
+                    y
+                });
+
+            }
+        );
+
+
+        /*
+            Connexions très fines.
+        */
+
+        ctx.lineWidth =
+            0.28;
+
+
+        const connectionDistance =
+            42;
+
+
+        const lineStarCount =
+            Math.min(
+                positions.length,
+                260
+            );
+
+
+        for (
+            let i = 0;
+            i < lineStarCount;
+            i++
+        ) {
+
+            for (
+                let j = i + 1;
+                j < lineStarCount;
+                j++
+            ) {
+
+                const dx =
+                    positions[i].x -
+                    positions[j].x;
+
+
+                const dy =
+                    positions[i].y -
+                    positions[j].y;
+
+
+                if (
+                    Math.abs(dx) >
+                    connectionDistance ||
+                    Math.abs(dy) >
+                    connectionDistance
+                ) {
+                    continue;
+                }
+
+
+                const distanceSq =
+                    dx * dx +
+                    dy * dy;
+
+
+                if (
+                    distanceSq >
+                    connectionDistance *
+                    connectionDistance
+                ) {
+                    continue;
+                }
+
+
+                const distance =
+                    Math.sqrt(
+                        distanceSq
+                    );
+
+
+                const alpha =
+                    (
+                        1 -
+                        distance /
+                        connectionDistance
+                    )
+                    *
+                    0.07;
+
+
+                ctx.strokeStyle =
+                    `rgba(170,200,255,${alpha})`;
+
+
+                ctx.beginPath();
+
+
+                ctx.moveTo(
+                    positions[i].x,
+                    positions[i].y
+                );
+
+
+                ctx.lineTo(
+                    positions[j].x,
+                    positions[j].y
+                );
+
+
+                ctx.stroke();
+
+            }
+
+        }
+
+
+        /*
+            Micro-étoiles.
+        */
+
+        positions.forEach(
+            (
+                position,
+                index
+            ) => {
+
+                const star =
+                    stars[index];
+
+
+                const pulse =
+                    0.72 +
+                    Math.sin(
+                        timestamp *
+                        0.0018 +
+                        star.phase
+                    )
+                    *
+                    0.28;
+
+
+                const alpha =
+                    star.opacity *
+                    pulse;
+
+
+                const glow =
+                    ctx.createRadialGradient(
+
+                        position.x,
+                        position.y,
+                        0,
+
+                        position.x,
+                        position.y,
+
+                        star.glow
+
+                    );
+
+
+                glow.addColorStop(
+                    0,
+                    `rgba(255,255,255,${alpha})`
+                );
+
+
+                glow.addColorStop(
+                    0.42,
+                    `rgba(180,205,255,${alpha * 0.28})`
+                );
+
+
+                glow.addColorStop(
+                    1,
+                    "rgba(120,150,255,0)"
+                );
+
+
+                ctx.fillStyle =
+                    glow;
+
+
+                ctx.beginPath();
+
+
+                ctx.arc(
+                    position.x,
+                    position.y,
+                    star.glow,
+                    0,
+                    Math.PI *
+                    2
+                );
+
+
+                ctx.fill();
+
+
+                ctx.fillStyle =
+                    `rgba(255,255,255,${Math.min(1, alpha + 0.1)})`;
+
+
+                ctx.beginPath();
+
+
+                ctx.arc(
+                    position.x,
+                    position.y,
+                    star.size,
+                    0,
+                    Math.PI *
+                    2
+                );
+
+
+                ctx.fill();
+
+            }
+        );
+
+
+        /*
+            Formation progressive d'une
+            petite boule centrale.
+        */
+
+        const orbProgress =
+            Math.max(
+                (
+                    progress -
+                    0.66
+                )
+                /
+                0.34,
+                0
+            );
+
+
+        orb.style.opacity =
+            String(
+                0.12 +
+                orbProgress *
+                0.88
+            );
+
+
+        orb.style.transform =
+            `
+            translate(-50%, -50%)
+            scale(${0.22 + orbProgress * 0.78})
+            `;
+
+
+        const percentage =
+            remoteGenerationPercent === null
+                ? Math.round(
+                    progress *
+                    100
+                )
+                : remoteGenerationPercent;
+
+
+        percent.textContent =
+            percentage +
+            "%";
+
+
+        progressBar.style.width =
+            percentage +
+            "%";
+
+
+        if (remoteGenerationStatus) {
+
+            status.textContent =
+                remoteGenerationStatus;
+
+        }
+
+        else if (
+            progress <
+            0.22
+        ) {
+
+            status.textContent =
+                "Création des micro-étoiles...";
+
+        }
+
+        else if (
+            progress <
+            0.50
+        ) {
+
+            status.textContent =
+                "Les constellations se dessinent...";
+
+        }
+
+        else if (
+            progress <
+            0.78
+        ) {
+
+            status.textContent =
+                "Les étoiles convergent...";
+
+        }
+
+        else {
+
+            status.textContent =
+                "Formation du noyau lumineux...";
+
+        }
+
+
+        constellationAnimationFrame =
+            requestAnimationFrame(
+                animate
+            );
+
+    }
+
+
+    constellationAnimationFrame =
+        requestAnimationFrame(
+            animate
+        );
+
+}
+
+
+/* ========================================================= */
+/* STOP CONSTELLATION */
+/* ========================================================= */
+
+function stopConstellationAnimation() {
+
+    if (
+        constellationAnimationFrame
+    ) {
+
+        cancelAnimationFrame(
+            constellationAnimationFrame
+        );
+
+
+        constellationAnimationFrame =
+            null;
+
+    }
+
+
+    if (
+        constellationResizeHandler
+    ) {
+
+        window.removeEventListener(
+            "resize",
+            constellationResizeHandler
+        );
+
+
+        constellationResizeHandler =
+            null;
+
+    }
+
+}
+
+
+/* ========================================================= */
+/* REMOVE IMAGE GENERATION */
+/* ========================================================= */
+
+function removeImageGeneration() {
+
+    stopConstellationAnimation();
+
+
+    if (
+        imageRevealAnimationFrame
+    ) {
+
+        cancelAnimationFrame(
+            imageRevealAnimationFrame
+        );
+
+
+        imageRevealAnimationFrame =
+            null;
+
+    }
+
+
+    const old =
+        document.getElementById(
+            "imageGeneration"
+        );
+
+
+    if (old) {
+
+        old.remove();
+
+    }
+
+}
+
+
+/* ========================================================= */
+/* SCROLL */
+/* ========================================================= */
+
+function scrollToBottom() {
+
+    requestAnimationFrame(
+        () => {
+
+            conversation.scrollTo({
+
+                top:
+                    conversation.scrollHeight,
+
+                behavior:
+                    "smooth"
+
+            });
+
+        }
+    );
+
+}
+
+
+/* ========================================================= */
+/* NEW CHAT */
+/* ========================================================= */
+
+function newChat() {
+
+    hideThinking();
+
+
+    if (activeDiscordStream) {
+        activeDiscordStream.close();
+        activeDiscordStream = null;
+    }
+
+
+    isDiscordTurnActive = false;
+
+    currentConversationId = createConversationId();
+
+    rememberActiveConversation();
+
+    removeImageGeneration();
+
+
+    messages.innerHTML =
+        "";
+
+
+    loadConversations();
+
+
+    welcome.style.display =
+        "flex";
+
+
+    input.value =
+        "";
+
+
+    input.style.height =
+        "auto";
+
+
+    sendButton.disabled =
+        true;
+
+
+    currentImagePrompt =
+        "";
+
+
+    input.focus();
+
+}
+
+
+input.focus();
+
+loadConversations();
+
+</script>
+
+</body>
+</html>

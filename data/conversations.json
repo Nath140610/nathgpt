@@ -1,0 +1,189 @@
+{
+  "nath": [
+    {
+      "id": "d2caccaf57874109b76860df59b0dd52",
+      "title": "ping",
+      "created_at": "2026-08-20T11:53:45.028401+00:00",
+      "updated_at": "2026-08-20T12:08:37.314676+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "ping",
+          "created_at": "2026-08-20T11:53:45.028401+00:00"
+        },
+        {
+          "role": "user",
+          "content": "ping",
+          "created_at": "2026-08-20T11:54:58.456993+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "pong 🏓",
+          "created_at": "2026-08-20T11:55:18.330787+00:00"
+        },
+        {
+          "role": "user",
+          "content": "genere une image d'un chat",
+          "created_at": "2026-08-20T11:56:21.595186+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T11:57:05.656206+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1539965656672247818/1539966495725981727/image_chatgpt_d57c4db0.png?ex=6a883d0f&is=6a86eb8f&hm=9bd43f28d3d5271fb04d8ae3b7389d4377e6aa2b4ed5623f183b2e8ad0ab856b&"
+        },
+        {
+          "role": "user",
+          "content": "genere l'image d'une voiture dans l'eau",
+          "created_at": "2026-08-20T11:58:54.525229+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T11:59:34.348595+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1539965656672247818/1539967119423447102/image_chatgpt_6c0966d2.png?ex=6a883da4&is=6a86ec24&hm=21ce4e48fc84d255d9626751d735acd8096be7a704a74f3655029b2eb2925327&"
+        },
+        {
+          "role": "user",
+          "content": "modify: \"ajoute un pot de fleures\"",
+          "created_at": "2026-08-20T12:07:49.970326+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "reponds directement au message qui contient l'image",
+          "created_at": "2026-08-20T12:07:50.510481+00:00"
+        },
+        {
+          "role": "user",
+          "content": "png:",
+          "created_at": "2026-08-20T12:08:36.779181+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "reponds directement au message qui contient l'image",
+          "created_at": "2026-08-20T12:08:37.314676+00:00"
+        }
+      ]
+    },
+    {
+      "id": "a0be5999018040159793fa4111a073ab",
+      "title": "genere une image d'un sous marin sur le sable",
+      "created_at": "2026-08-20T12:09:02.446671+00:00",
+      "updated_at": "2026-08-20T12:13:11.412340+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "genere une image d'un sous marin sur le sable",
+          "created_at": "2026-08-20T12:09:02.446671+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T12:09:51.319140+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1539969504778395698/1539969707359207534/image_chatgpt_87469412.png?ex=6a88400d&is=6a86ee8d&hm=17fa5f74491cfebe88b07ac4b03dddb6c0cbe233b66861340fff34f58d6415f5&"
+        },
+        {
+          "role": "user",
+          "content": "modify: \"ajoute un humain a coté\"",
+          "created_at": "2026-08-20T12:10:28.901213+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T12:11:27.678306+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1539969504778395698/1539970111564161124/image_modifiee_2e169b80.png?ex=6a88406d&is=6a86eeed&hm=d000961b1191444416faf7a373c81e76646f81d2bdd4f4d513e9c1f6d6035497&"
+        },
+        {
+          "role": "user",
+          "content": "png:",
+          "created_at": "2026-08-20T12:11:40.435199+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T12:13:11.412340+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1539969504778395698/1539970546148835349/image_png_b7deb870.png?ex=6a8840d5&is=6a86ef55&hm=85961340b899ed68b7caf3db360c9f4c5c7d21b477078f6f84b1893164136a4f&"
+        }
+      ]
+    },
+    {
+      "id": "3750b7bf60d94983a3912719c2b0a22f",
+      "title": "rend ce logo plus beau",
+      "created_at": "2026-08-20T12:16:50.094938+00:00",
+      "updated_at": "2026-08-20T12:27:53.049056+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "rend ce logo plus beau",
+          "created_at": "2026-08-20T12:16:50.094938+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Envoie-moi l’image du logo ici et je te le rends plus beau (version améliorée) en gardant l’identité du logo.\nJe peux par exemple améliorer :\nla netteté et la qualité HD\nles couleurs et le contraste\nun effet plus professionnel / moderne\nla typographie\nles ombres, effets 3D ou relief\nune version PNG sans fond si besoin\nAjoute simplement le logo.",
+          "created_at": "2026-08-20T12:17:14.613787+00:00"
+        },
+        {
+          "role": "user",
+          "content": "rend ce logo plus beau",
+          "created_at": "2026-08-20T12:25:28.995211+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T12:26:36.424562+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1539971466223947858/1539973923637170216/image_chatgpt_37afe4e1.png?ex=6a8843fa&is=6a86f27a&hm=62e5889f1654086ae436a595378a0f7949cdd026b908348b67a2d377615e710d&"
+        },
+        {
+          "role": "user",
+          "content": "png:",
+          "created_at": "2026-08-20T12:27:53.049056+00:00"
+        }
+      ]
+    },
+    {
+      "id": "475e1cd3d4a94526afa6b4af195136c8",
+      "title": "comment faire des ^pates",
+      "created_at": "2026-08-20T12:28:38.679949+00:00",
+      "updated_at": "2026-08-20T12:28:38.679949+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "comment faire des ^pates",
+          "created_at": "2026-08-20T12:28:38.679949+00:00"
+        }
+      ]
+    },
+    {
+      "id": "f23c0064305342e0a86b1d3c493a2032",
+      "title": "chaise",
+      "created_at": "2026-08-20T12:30:05.217894+00:00",
+      "updated_at": "2026-08-20T12:30:05.217894+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "chaise",
+          "created_at": "2026-08-20T12:30:05.217894+00:00"
+        }
+      ]
+    },
+    {
+      "id": "59f0906e5d48480a8f42edb00ada12ee",
+      "title": "genere une image d'un  chien",
+      "created_at": "2026-08-20T12:32:44.845994+00:00",
+      "updated_at": "2026-08-20T12:33:35.728450+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "genere une image d'un  chien",
+          "created_at": "2026-08-20T12:32:44.845994+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T12:33:35.728450+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1539975470739755021/1539975681834754088/image_chatgpt_00c86a65.png?ex=6a88459d&is=6a86f41d&hm=f971f4d6396c706ad47687f79dea3d2811722eec4fea1e664aea94542887ae15&"
+        }
+      ]
+    }
+  ]
+}
