@@ -144,6 +144,19 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 36 * 1024 * 1024
 
 
+@app.context_processor
+def inject_asset_version():
+
+    try:
+        version = int(
+            (BASE_DIR / "static" / "style.css").stat().st_mtime
+        )
+    except OSError:
+        version = 1
+
+    return {"asset_version": version}
+
+
 # ============================================================
 # VERROU POUR LES JSON
 # ============================================================
@@ -949,6 +962,16 @@ def logo():
     )
 
 
+@app.route("/favicon.ico")
+def favicon():
+
+    return send_from_directory(
+        BASE_DIR,
+        "logo.png",
+        mimetype="image/png"
+    )
+
+
 @app.route("/health")
 def health():
 
@@ -1565,6 +1588,9 @@ def logout():
 
 @app.errorhandler(404)
 def page_not_found(error):
+
+    if request.path.startswith("/static/"):
+        return "", 404
 
     if session.get("username"):
 

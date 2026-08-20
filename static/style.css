@@ -22,6 +22,11 @@ body {
 }
 
 
+html {
+    min-height: -webkit-fill-available;
+}
+
+
 body {
     font-family:
         Inter,
@@ -43,6 +48,14 @@ button,
 input,
 textarea {
     font: inherit;
+}
+
+
+button,
+input,
+textarea {
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 
@@ -245,6 +258,8 @@ textarea {
     height:
         100dvh;
 
+    min-height: -webkit-fill-available;
+
     overflow:
         hidden;
 }
@@ -259,6 +274,8 @@ textarea {
 
     height:
         100dvh;
+
+    min-height: -webkit-fill-available;
 }
 
 
@@ -1294,6 +1311,7 @@ textarea {
         linear-gradient(90deg, rgba(127, 154, 255, .10) 1px, transparent 1px);
     background-size: 32px 32px;
     mask-image: radial-gradient(ellipse at center, black 0%, transparent 66%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 66%);
     transform: perspective(500px) rotateX(67deg) translateY(19%);
     transform-origin: center;
     animation: generationGridDrift 7s ease-in-out infinite alternate;
@@ -1810,6 +1828,9 @@ textarea {
     backdrop-filter:
         blur(10px);
 
+    -webkit-backdrop-filter:
+        blur(10px);
+
     font-size:
         11px;
 
@@ -1844,6 +1865,9 @@ textarea {
         rgba(0,0,0,.30);
 
     backdrop-filter:
+        blur(10px);
+
+    -webkit-backdrop-filter:
         blur(10px);
 
     font-size:
@@ -2156,6 +2180,7 @@ textarea::placeholder {
         border-bottom: 1px solid rgba(255,255,255,.06);
         background: rgba(33,33,33,.92);
         backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
     }
 
 
