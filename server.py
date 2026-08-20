@@ -13,6 +13,9 @@ from flask import (
     stream_with_context,
 )
 
+import codecs
+import encodings.idna
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -29,18 +32,74 @@ import threading
 from discord_bridge import DiscordBridge
 
 
+# Certains environnements Python minimalistes ne chargent pas automatiquement
+# le codec IDNA, pourtant utilisé par Werkzeug pour lire le nom de domaine.
+# Son enregistrement explicite évite les erreurs 500 sur les URL Render.
+def ensure_idna_codec():
+
+    try:
+        codecs.lookup("idna")
+        return
+    except LookupError:
+        pass
+
+
+    codecs.register(
+        lambda name: (
+            encodings.idna.getregentry()
+            if name.replace("_", "-") == "idna"
+            else None
+        )
+    )
+
+
+ensure_idna_codec()
+
+
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
-DATA_DIR = Path(
-    os.environ.get(
-        "NATHGPT_DATA_DIR",
-        str(BASE_DIR / "data")
+DEFAULT_DATA_DIR = BASE_DIR / "data"
+
+
+def get_data_dir():
+
+    configured_dir = Path(
+        os.environ.get(
+            "NATHGPT_DATA_DIR",
+            str(DEFAULT_DATA_DIR)
+        )
     )
-)
+
+    try:
+        configured_dir.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        return configured_dir
+
+    except PermissionError:
+        # Render n'autorise /var/data que lorsqu'un disque persistant est
+        # réellement monté. En plan Free, l'application reste fonctionnelle
+        # avec un stockage temporaire dans le dossier du projet.
+        DEFAULT_DATA_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        print(
+            "Stockage persistant indisponible : "
+            "utilisation du dossier data temporaire."
+        )
+
+        return DEFAULT_DATA_DIR
+
+
+DATA_DIR = get_data_dir()
 
 USERS_FILE = DATA_DIR / "users.json"
 
@@ -83,14 +142,6 @@ REMEMBER_DAYS = 90
 app = Flask(__name__)
 
 app.config["MAX_CONTENT_LENGTH"] = 36 * 1024 * 1024
-
-
-# Création automatique du dossier data
-
-DATA_DIR.mkdir(
-    parents=True,
-    exist_ok=True
-)
 
 
 # ============================================================
