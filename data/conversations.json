@@ -184,6 +184,123 @@
           "image_url": "https://cdn.discordapp.com/attachments/1539975470739755021/1539975681834754088/image_chatgpt_00c86a65.png?ex=6a88459d&is=6a86f41d&hm=f971f4d6396c706ad47687f79dea3d2811722eec4fea1e664aea94542887ae15&"
         }
       ]
+    },
+    {
+      "id": "b178f5379c85421d9a86a209ee9d49bf",
+      "title": "test",
+      "created_at": "2026-08-20T15:28:42.591129+00:00",
+      "updated_at": "2026-08-20T15:29:02.584619+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "test",
+          "created_at": "2026-08-20T15:28:42.591129+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Test reçu ✅",
+          "created_at": "2026-08-20T15:29:02.584619+00:00"
+        }
+      ]
+    },
+    {
+      "id": "c912c8c9f81a477d8483c80edfa3073d",
+      "title": "ping",
+      "created_at": "2026-08-20T15:33:17.026246+00:00",
+      "updated_at": "2026-08-20T15:33:42.624505+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "ping",
+          "created_at": "2026-08-20T15:33:17.026246+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "pong 🏓",
+          "created_at": "2026-08-20T15:33:42.624505+00:00"
+        }
+      ]
+    },
+    {
+      "id": "a90ae07295314b3990073094161dd631",
+      "title": "genere une image de test",
+      "created_at": "2026-08-20T15:38:10.272252+00:00",
+      "updated_at": "2026-08-20T15:39:03.476543+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "genere une image de test",
+          "created_at": "2026-08-20T15:38:10.272252+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T15:39:03.476543+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1540022147659997185/1540022356293062757/image_chatgpt_6688c118.png?ex=6a887115&is=6a871f95&hm=54c8bb93b1bbc118029940caf3f5000750d04fe1f442455ed8ed2652c44dfed1&"
+        }
+      ]
+    },
+    {
+      "id": "6051ed6eabd84a5c8efd283dbac4c7de",
+      "title": "Est ce que legalement on peut vendre des autocollants faits avec de l’ia et des ",
+      "created_at": "2026-08-20T15:39:25.516609+00:00",
+      "updated_at": "2026-08-20T15:40:28.283922+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Est ce que legalement on peut vendre des autocollants faits avec de l’ia et des idées personnelles ? Imprimées et découpées avec une cricut ?",
+          "created_at": "2026-08-20T15:39:25.516609+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Oui. En France, tu peux vendre légalement des autocollants conçus avec l’aide d’une IA, puis imprimés et découpés avec une Cricut. Le fait d’utiliser une Cricut ne pose aucun problème juridique en soi.\nPour des stickers générés avec ChatGPT à partir de tes propres idées, c’est même un cas plutôt favorable : les conditions actuelles d’OpenAI indiquent que, entre toi et OpenAI et dans la mesure permise par la loi, tu possèdes les résultats générés. OpenAI précise toutefois que les résultats peuvent ne pas être uniques et que tu restes responsable de ne pas violer les droits de tiers.\nOpenAI\n+1\n✅ Tu peux par exemple vendre\nUn sticker « petit astronaute qui code en Python » que tu as imaginé puis fait générer par IA.\nDes personnages originaux, animaux, phrases ou illustrations inventées.\nUne planche créée avec l’IA, que tu modifies ensuite toi-même : couleurs, composition, texte, détails, contours, etc.\nCes images imprimées sur papier autocollant puis découpées avec ta Cricut.\nIl y a cependant une grosse règle : évite les œuvres et marques appartenant à d'autres personnes. Par exemple, vendre sans autorisation des stickers avec Mario, Stitch, Pokémon, Nike, Apple, Roblox, Disney, Marvel, des logos d'entreprises, etc. peut constituer une atteinte au droit d'auteur ou aux marques, même si c’est une IA qui a redessiné le personnage. L’INPI rappelle que les créations graphiques originales sont protégées et que leur reproduction/distribution appartient normalement au titulaire des droits.\nINPI\n+1\n🤖 Et le droit d'auteur de TES créations IA ?\nIl faut distinguer « pouvoir vendre » et « avoir un droit d'auteur très solide dessus ».\n\nLe rapport du ministère français de la Culture publié le 16 juillet 2026 considère qu'une création réalisée avec l'IA peut bénéficier du droit d'auteur lorsqu'il existe une véritable direction créative humaine : conception, prompts et choix créatifs, plusieurs générations et sélections, retouches, composition finale, etc. Une production entièrement automatique sans intervention humaine créative significative resterait en revanche en dehors du droit d'auteur.\nMinistère de la Culture\nDonc, pour tes stickers, c'est intéressant de faire par exemple :\nton idée → ton prompt détaillé → génération IA → choix de la meilleure version → modifications → texte → couleurs → composition → contours Cricut.\nPlus tu participes réellement à la création, plus il est facile de montrer ton apport créatif.\n⚠️ Attention aux images fournies par Cricut\nSi tu importes ta propre image dans Cricut Design Space, aucun problème particulier lié à Cricut.\nEn revanche, si tu prends des dessins, polices ou éléments directement dans Cricut Access, regarde leur licence. Cricut précise que certains contenus peuvent bénéficier d'une autorisation commerciale limitée via son Angel Policy, tandis que certains contenus sous licence ne sont pas autorisés pour une utilisation commerciale.\nstaticcontent.cricut.com\n+1\n💰 Et si tu commences réellement à les vendre\nSi tu fabriques des stickers dans le but de les vendre régulièrement, il faut aussi déclarer l'activité et les revenus. En France, la micro-entreprise est notamment un statut couramment utilisé pour la vente de marchandises et d'objets fabriqués. Les formalités de création d'entreprise passent par le guichet unique.\nService Public Entreprendre\n+1\nDonc pour ton projet :\n💡 Tu inventes tes designs → tu me demandes de les générer → tu les ajustes → tu les imprimes → tu les découpes à la Cricut → tu les vends.\n\nOui, c'est possible légalement, à condition principalement de créer des designs originaux, de ne pas utiliser sans autorisation des personnages/logos protégés et de déclarer correctement ton activité lorsque tu commences à vendre régulièrement.",
+          "created_at": "2026-08-20T15:40:28.283922+00:00"
+        }
+      ]
+    }
+  ],
+  "nathanaell": [
+    {
+      "id": "22c9bc1782604e9c96336810feeec728",
+      "title": "genere l'image d'un chat vert",
+      "created_at": "2026-08-20T15:48:05.431157+00:00",
+      "updated_at": "2026-08-20T15:50:24.615058+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "genere l'image d'un chat vert",
+          "created_at": "2026-08-20T15:48:05.431157+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T15:49:05.391108+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1540024643891626105/1540024879980748851/image_chatgpt_88b91308.png?ex=6a88736f&is=6a8721ef&hm=4625c760c2998644c38b55019370552c9b7d1fb3534d8df12cbe09a33e18477d&"
+        },
+        {
+          "role": "user",
+          "content": "comment faire des pates ?",
+          "created_at": "2026-08-20T15:49:48.231001+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Pour faire des pâtes simplement :\nFais bouillir une grande casserole d’eau.\nAjoute une pincée de sel.\nMets les pâtes dans l’eau bouillante.\nLaisse cuire le temps indiqué sur le paquet, souvent 8 à 12 minutes, en mélangeant de temps en temps.\nGoûte une pâte : si elle est assez tendre, égoutte-les avec une passoire.\nAjoute ce que tu veux : beurre, sauce tomate, fromage râpé, pesto, crème, etc.\nPetit conseil : garde un peu d’eau de cuisson avant d’égoutter, ça aide à rendre la sauce plus crémeuse.",
+          "created_at": "2026-08-20T15:50:24.615058+00:00"
+        }
+      ]
+    },
+    {
+      "id": "e458e42c862d4a2dbbcca13a1adc2132",
+      "title": "On peut vendre légalement des stickers faits avec de l’ia et nos idées personnel",
+      "created_at": "2026-08-20T15:50:48.969549+00:00",
+      "updated_at": "2026-08-20T15:50:48.969549+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "On peut vendre légalement des stickers faits avec de l’ia et nos idées personnelles mais imprimés et découpé avec une cricut ?",
+          "created_at": "2026-08-20T15:50:48.969549+00:00"
+        }
+      ]
     }
   ]
 }

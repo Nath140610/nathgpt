@@ -13,6 +13,7 @@ import uuid
 
 DEFAULT_CATEGORY_ID = 1539922989200576512
 DEFAULT_TARGET_BOT_ID = 1539359893063209053
+TEXT_RESPONSE_SETTLE_SECONDS = 1.6
 
 
 def load_local_env(project_dir: Path):
@@ -123,6 +124,9 @@ class DiscordBridge:
                 "username": username,
                 "conversation_id": conversation_id,
                 "conversation_key": f"{username.casefold()}:{conversation_id}",
+                "text_messages": {},
+                "text_message_order": [],
+                "text_result_timer": None,
             }
 
         future = asyncio.run_coroutine_threadsafe(
@@ -213,6 +217,68 @@ class DiscordBridge:
             await self._client.start(self.token)
         finally:
             self._ready.clear()
+
+    def delete_user_conversations(self, username):
+        """Supprime les salons Discord appartenant au compte indiquÃ©.
+
+        La suppression locale n'est faite qu'aprÃ¨s la suppression des salons,
+        afin d'Ã©viter de faire croire Ã  l'utilisateur que Discord a Ã©tÃ©
+        effacÃ© lorsque le bot n'a pas les droits nÃ©cessaires.
+        """
+        prefix = f"{username.casefold()}:"
+
+        with self._lock:
+            conversation_entries = {
+                key: channel_id
+                for key, channel_id in self._conversations.items()
+                if key.startswith(prefix)
+            }
+
+        if conversation_entries:
+            if not self.enabled or not self._ready.is_set() or not self._loop:
+                raise RuntimeError(
+                    "Le bot Discord doit Ãªtre connectÃ© pour supprimer les salons de ce compte."
+                )
+
+            future = asyncio.run_coroutine_threadsafe(
+                self._delete_channels(list(conversation_entries.values())),
+                self._loop,
+            )
+            try:
+                future.result(timeout=45)
+            except Exception as error:
+                raise RuntimeError(
+                    "Impossible de supprimer tous les salons Discord de ce compte. "
+                    "VÃ©rifie que le bot a la permission GÃ©rer les salons."
+                ) from error
+
+        with self._lock:
+            for key in conversation_entries:
+                self._conversations.pop(key, None)
+            for key in list(self._image_messages):
+                if key.startswith(prefix):
+                    self._image_messages.pop(key, None)
+            for channel_id in conversation_entries.values():
+                self._channel_jobs.pop(channel_id, None)
+
+            self._save_conversations()
+            self._save_image_messages()
+
+    async def _delete_channels(self, channel_ids):
+        for channel_id in channel_ids:
+            channel = self._client.get_channel(channel_id)
+
+            if channel is None:
+                try:
+                    channel = await self._client.fetch_channel(channel_id)
+                except self._discord.NotFound:
+                    continue
+
+            if isinstance(channel, self._discord.TextChannel):
+                try:
+                    await channel.delete(reason="Suppression d'un compte NathGPT")
+                except self._discord.NotFound:
+                    continue
 
     async def _send_turn(
         self,
@@ -337,7 +403,52 @@ class DiscordBridge:
             self._publish(job_id, {"type": "status", "message": content})
             return
 
-        self._publish(job_id, {"type": "text", "message": content}, final=True)
+        self._queue_text_response(job_id, message.id, content)
+
+    def _queue_text_response(self, job_id, message_id, content):
+        """Regroupe les messages successifs du bot dans une seule rÃ©ponse."""
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+
+            text_messages = job["text_messages"]
+            if message_id not in text_messages:
+                job["text_message_order"].append(message_id)
+            text_messages[message_id] = content
+
+            previous_timer = job.get("text_result_timer")
+            if previous_timer:
+                previous_timer.cancel()
+
+            result_timer = threading.Timer(
+                TEXT_RESPONSE_SETTLE_SECONDS,
+                self._publish_combined_text,
+                args=(job_id,),
+            )
+            result_timer.daemon = True
+            job["text_result_timer"] = result_timer
+            result_timer.start()
+
+    def _publish_combined_text(self, job_id):
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+
+            parts = [
+                job["text_messages"][message_id]
+                for message_id in job["text_message_order"]
+                if job["text_messages"].get(message_id)
+            ]
+            job["text_result_timer"] = None
+
+        if parts:
+            self._publish(
+                job_id,
+                {"type": "text", "message": "\n\n".join(parts)},
+                final=True,
+            )
 
     def _image_url_from(self, message):
         for attachment in message.attachments:
@@ -356,9 +467,28 @@ class DiscordBridge:
 
     @staticmethod
     def _is_progress(content):
+        """Retourne True uniquement pour les messages de progression.
+
+        Une rÃ©ponse normale peut parler d'une image "gÃ©nÃ©rÃ©e" ou d'une
+        "crÃ©ation". Ces mots seuls ne doivent jamais masquer une rÃ©ponse
+        finale : seuls les courts messages indiquant explicitement une attente
+        ou un pourcentage sont traitÃ©s comme une progression.
+        """
+        text = " ".join((content or "").split())
+        if not text:
+            return False
+
+        # Une vraie rÃ©ponse peut exceptionnellement citer un pourcentage ;
+        # les statuts de gÃ©nÃ©ration, eux, restent volontairement courts.
+        if len(text) > 320:
+            return False
+
         return bool(re.search(
-            r"\b\d{1,3}\s*%|génér|gener|création|creation|charg|processing|render|patiente|attend|réflexion\s+en\s+cours|reflexion\s+en\s+cours|\bthinking\b|demande\s+en\s+attente|request\s+pending|\bpending\b|\bqueued?\b|\bqueue\b",
-            content,
+            r"(?:\b\d{1,3}\s*%|demande\s+en\s+attente|request\s+pending|"
+            r"r[ée]flexion\s+en\s+cours|\bthinking\b|\bqueued?\b|\bqueue\b|"
+            r"(?:g[ée]n[ée]ration|generation|cr[ée]ation|creation|image)"
+            r".{0,80}(?:en\s+cours|charg|processing|render|patiente|attend))",
+            text,
             re.I,
         ))
 
@@ -372,6 +502,10 @@ class DiscordBridge:
                 return
             job["events"].put(event)
             if final:
+                text_result_timer = job.get("text_result_timer")
+                if text_result_timer:
+                    text_result_timer.cancel()
+                    job["text_result_timer"] = None
                 result_handler = self._result_handler
                 result_context = (
                     job["username"],

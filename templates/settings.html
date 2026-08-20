@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Paramètres - NathGPT</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
+</head>
+<body class="settings-page">
+    <main class="settings-shell">
+        <header class="settings-header">
+            <div class="settings-brand">
+                <img src="/logo.png" alt="NathGPT">
+                <div>
+                    <p>Mon espace</p>
+                    <h1>Paramètres</h1>
+                </div>
+            </div>
+            <a class="staff-return" href="{{ url_for('chat') }}">Retour au chat</a>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section class="settings-card">
+            <p class="settings-eyebrow">Compte</p>
+            <h2>{{ username }}</h2>
+            <dl class="settings-details">
+                <div><dt>Créé le</dt><dd>{{ account.created_at or "Inconnue" }}</dd></div>
+                <div><dt>Dernière activité</dt><dd>{{ account.last_seen_at or account.last_login_at or "Inconnue" }}</dd></div>
+            </dl>
+            <a class="settings-logout" href="{{ url_for('logout') }}">Se déconnecter</a>
+        </section>
+
+        <section class="settings-card settings-danger">
+            <p class="settings-eyebrow">Zone sensible</p>
+            <h2>Supprimer mon compte</h2>
+            <p>
+                Cette action supprime définitivement ton compte, toutes les conversations enregistrées
+                et les salons Discord associés. Elle ne peut pas être annulée.
+            </p>
+            <form method="POST" action="{{ url_for('delete_own_account') }}" class="settings-delete-form">
+                <input type="hidden" name="csrf_token" value="{{ settings_csrf_token }}">
+                <label for="deletePassword">Mot de passe actuel</label>
+                <input id="deletePassword" type="password" name="password" autocomplete="current-password" required>
+                <label for="deleteConfirmation">Pour confirmer, écris <strong>SUPPRIMER MON COMPTE</strong></label>
+                <input id="deleteConfirmation" type="text" name="confirmation" autocomplete="off" required>
+                <button class="settings-delete-button" type="submit">Supprimer définitivement mon compte</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

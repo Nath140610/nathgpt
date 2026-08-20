@@ -1,1 +1,12 @@
-{}
+{
+  "nathanaell": {
+    "password_hash": "scrypt:32768:8:1$GeLISFrgVkPbBzGA$13e6ef996c1b9a89e6901d9e22f0baf8ecfb99afc27974296c74117ed541aa6a90deb8cbb5f6e1388c3cd3daf4904cad27ac561f4f397b3981c1964bd0fd86c5",
+    "created_at": "2026-08-20T15:43:43.341288+00:00",
+    "last_login_at": "2026-08-20T15:43:43.341288+00:00",
+    "last_ip": "127.0.0.1",
+    "known_ips": [
+      "127.0.0.1"
+    ],
+    "last_seen_at": "2026-08-20T15:50:24.620655+00:00"
+  }
+}

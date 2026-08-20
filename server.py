@@ -20,7 +20,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import hashlib
 import json
@@ -123,7 +123,17 @@ discord_bridge = DiscordBridge(DATA_DIR)
 # False :
 # uniquement le cookie de connexion automatique sera utilisé.
 
-ALLOW_IP_AUTOLOGIN = True
+ALLOW_IP_AUTOLOGIN = os.environ.get(
+    "ALLOW_IP_AUTOLOGIN",
+    "false"
+).lower() == "true"
+
+
+# Le mot de passe du panneau staff doit rester dans les variables Render,
+# jamais dans le code ni dans un fichier envoyÃ© sur GitHub.
+STAFF_PASSWORD = os.environ.get("STAFF_PASSWORD", "")
+STAFF_SESSION_SECONDS = 8 * 60 * 60
+STAFF_ACTIVE_WINDOW_SECONDS = 10 * 60
 
 
 # ============================================================
@@ -611,6 +621,150 @@ def add_ip_to_user(
 
 
 # ============================================================
+# ACTIVITE DES COMPTES (sans identifier le materiel)
+# ============================================================
+
+def touch_user_activity(username):
+    """Met Ã  jour l'activitÃ© rÃ©cente, au plus une fois par minute."""
+    now_timestamp = int(datetime.now(timezone.utc).timestamp())
+    last_write = int(session.get("_activity_written_at", 0) or 0)
+
+    if now_timestamp - last_write < 60:
+        return
+
+    users = load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+
+    if not user_key:
+        return
+
+    users[user_key]["last_seen_at"] = utc_now()
+    save_json(USERS_FILE, users)
+    session["_activity_written_at"] = now_timestamp
+
+
+def staff_account_summaries():
+    """PrÃ©pare des donnÃ©es minimales pour le panneau staff."""
+    users = load_json(USERS_FILE, {})
+    now = datetime.now(timezone.utc)
+    accounts = []
+
+    for username, details in users.items():
+        last_seen = details.get("last_seen_at") or details.get("last_login_at")
+        active = False
+
+        if last_seen:
+            try:
+                seen_at = datetime.fromisoformat(last_seen)
+                active = (now - seen_at).total_seconds() <= STAFF_ACTIVE_WINDOW_SECONDS
+            except (TypeError, ValueError):
+                pass
+
+        accounts.append({
+            "username": username,
+            "created_at": details.get("created_at", "Inconnue"),
+            "last_seen_at": last_seen or "Jamais",
+            "active": active,
+            "banned_until": get_ban_expiration(details),
+        })
+
+    accounts.sort(key=lambda account: (not account["active"], account["username"].casefold()))
+    return accounts
+
+
+def get_ban_expiration(user):
+    """Retourne la fin du bannissement si le compte est encore banni."""
+    value = user.get("banned_until")
+    if not value:
+        return None
+
+    try:
+        expiration = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
+    return expiration if expiration > datetime.now(timezone.utc) else None
+
+
+def is_user_banned(user):
+    return get_ban_expiration(user) is not None
+
+
+def revoke_user_tokens(username):
+    """Invalide les cookies de connexion persistante d'un compte."""
+    tokens = load_json(TOKENS_FILE, {})
+    wanted = username.casefold()
+    filtered = {
+        token_hash: details
+        for token_hash, details in tokens.items()
+        if str(details.get("username", "")).casefold() != wanted
+    }
+
+    if len(filtered) != len(tokens):
+        save_json(TOKENS_FILE, filtered)
+
+
+def remove_user_account(username):
+    """Supprime le compte et ses donnÃ©es locales aprÃ¨s effacement Discord."""
+    users = load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+    if not user_key:
+        return False
+
+    # Cette Ã©tape peut lever une erreur : dans ce cas le compte local reste
+    # intact, pour respecter la promesse de suppression Ã©galement sur Discord.
+    discord_bridge.delete_user_conversations(user_key)
+
+    del users[user_key]
+    save_json(USERS_FILE, users)
+    revoke_user_tokens(user_key)
+
+    conversations = load_json(CONVERSATIONS_FILE, {})
+    for conversation_owner in list(conversations):
+        if conversation_owner.casefold() == user_key.casefold():
+            del conversations[conversation_owner]
+    save_json(CONVERSATIONS_FILE, conversations)
+    return True
+
+
+def staff_is_authenticated():
+    now_timestamp = int(datetime.now(timezone.utc).timestamp())
+    return bool(STAFF_PASSWORD) and int(
+        session.get("staff_access_until", 0) or 0
+    ) > now_timestamp
+
+
+def get_staff_csrf_token():
+    token = session.get("staff_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["staff_csrf_token"] = token
+    return token
+
+
+def get_settings_csrf_token():
+    token = session.get("settings_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["settings_csrf_token"] = token
+    return token
+
+
+def render_staff_dashboard(temporary_password=None, temporary_username=None):
+    accounts = staff_account_summaries()
+    return render_template(
+        "staff.html",
+        authenticated=True,
+        accounts=accounts,
+        active_count=sum(account["active"] for account in accounts),
+        active_window_minutes=STAFF_ACTIVE_WINDOW_SECONDS // 60,
+        staff_csrf_token=get_staff_csrf_token(),
+        temporary_password=temporary_password,
+        temporary_username=temporary_username,
+    )
+
+
+# ============================================================
 # CREER TOKEN DE CONNEXION
 # ============================================================
 
@@ -806,6 +960,9 @@ def try_cookie_autologin():
 
         return None
 
+    if is_user_banned(users[user_key]):
+        return None
+
 
     ip = client_ip()
 
@@ -884,7 +1041,7 @@ def try_ip_autologin():
         )
 
 
-        if ip in known_ips:
+        if ip in known_ips and not is_user_banned(info):
 
             matches.append(
                 username
@@ -938,7 +1095,17 @@ def automatic_login():
 
 
     if session.get("username"):
+        users = load_json(USERS_FILE, {})
+        user_key = find_user_key(users, session["username"])
 
+        if not user_key or is_user_banned(users[user_key]):
+            session.clear()
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Ce compte est temporairement indisponible."}), 403
+            flash("Ce compte est temporairement indisponible.", "error")
+            return redirect(url_for("login"))
+
+        touch_user_activity(session["username"])
         return
 
 
@@ -1270,6 +1437,14 @@ def login():
         ]
 
 
+        if is_user_banned(user):
+            flash(
+                "Ce compte est temporairement indisponible.",
+                "error"
+            )
+            return render_template("login.html")
+
+
         # Vérifie mot de passe
 
         if not check_password_hash(
@@ -1364,6 +1539,179 @@ def chat():
         username=username
 
     )
+
+
+# ============================================================
+# PARAMETRES DU COMPTE
+# ============================================================
+
+@app.route("/settings")
+def settings():
+    username = session.get("username")
+    if not username:
+        return redirect(url_for("login"))
+
+    users = load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+    if not user_key:
+        session.clear()
+        return redirect(url_for("login"))
+
+    return render_template(
+        "settings.html",
+        username=user_key,
+        account=users[user_key],
+        settings_csrf_token=get_settings_csrf_token(),
+    )
+
+
+@app.route("/settings/delete-account", methods=["POST"])
+def delete_own_account():
+    username = session.get("username")
+    if not username:
+        return redirect(url_for("login"))
+
+    csrf_token = request.form.get("csrf_token", "")
+    if not secrets.compare_digest(csrf_token, session.get("settings_csrf_token", "")):
+        return "RequÃªte de suppression invalide.", 400
+
+    confirmation = request.form.get("confirmation", "").strip()
+    password = request.form.get("password", "")
+    users = load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+
+    if not user_key:
+        session.clear()
+        return redirect(url_for("login"))
+
+    if confirmation != "SUPPRIMER MON COMPTE" or not check_password_hash(
+        users[user_key].get("password_hash", ""), password
+    ):
+        flash("La confirmation ou le mot de passe est incorrect.", "error")
+        return redirect(url_for("settings"))
+
+    try:
+        remove_user_account(user_key)
+    except RuntimeError as error:
+        flash(str(error), "error")
+        return redirect(url_for("settings"))
+
+    session.clear()
+    response = make_response(redirect(url_for("login")))
+    response.delete_cookie(REMEMBER_COOKIE_NAME, path="/")
+    flash("Ton compte, tes conversations et tes salons Discord ont Ã©tÃ© supprimÃ©s.", "success")
+    return response
+
+
+# ============================================================
+# PANNEAU STAFF
+# ============================================================
+
+@app.route("/staff", methods=["GET", "POST"])
+def staff_panel():
+    """Panneau staff protÃ©gÃ© par STAFF_PASSWORD (variable Render)."""
+    if not STAFF_PASSWORD:
+        return "Le panneau staff n'est pas configurÃ©.", 503
+
+    now_timestamp = int(datetime.now(timezone.utc).timestamp())
+
+    if request.method == "POST":
+        lock_until = int(session.get("staff_lock_until", 0) or 0)
+        supplied_password = request.form.get("password", "")
+
+        if now_timestamp < lock_until:
+            flash("Trop de tentatives. RÃ©essaie dans quelques minutes.", "error")
+        elif secrets.compare_digest(supplied_password, STAFF_PASSWORD):
+            session.pop("staff_attempts", None)
+            session.pop("staff_lock_until", None)
+            session["staff_access_until"] = now_timestamp + STAFF_SESSION_SECONDS
+            return redirect(url_for("staff_panel"))
+        else:
+            attempts = int(session.get("staff_attempts", 0) or 0) + 1
+            session["staff_attempts"] = attempts
+
+            if attempts >= 5:
+                session["staff_attempts"] = 0
+                session["staff_lock_until"] = now_timestamp + 10 * 60
+                flash("Trop de tentatives. RÃ©essaie dans 10 minutes.", "error")
+            else:
+                flash("Mot de passe incorrect.", "error")
+
+    access_until = int(session.get("staff_access_until", 0) or 0)
+
+    if access_until <= now_timestamp:
+        session.pop("staff_access_until", None)
+        return render_template("staff.html", authenticated=False)
+
+    return render_staff_dashboard()
+
+
+@app.route("/staff/accounts/<username>/<action>", methods=["POST"])
+def staff_account_action(username, action):
+    """Actions sensibles disponibles uniquement au staff authentifiÃ©."""
+    if not staff_is_authenticated():
+        return "AccÃ¨s staff requis.", 403
+
+    csrf_token = request.form.get("csrf_token", "")
+    if not secrets.compare_digest(csrf_token, session.get("staff_csrf_token", "")):
+        return "RequÃªte staff invalide.", 400
+
+    users = load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+    if not user_key:
+        flash("Compte introuvable.", "error")
+        return redirect(url_for("staff_panel"))
+
+    if action == "reset-password":
+        temporary_password = secrets.token_urlsafe(12)
+        users[user_key]["password_hash"] = generate_password_hash(temporary_password)
+        users[user_key]["password_reset_at"] = utc_now()
+        save_json(USERS_FILE, users)
+        revoke_user_tokens(user_key)
+        return render_staff_dashboard(
+            temporary_password=temporary_password,
+            temporary_username=user_key,
+        )
+
+    if action == "ban":
+        try:
+            hours = int(request.form.get("ban_hours", "0"))
+        except ValueError:
+            hours = 0
+
+        if hours not in {1, 24, 72, 168, 720}:
+            flash("DurÃ©e de bannissement invalide.", "error")
+            return redirect(url_for("staff_panel"))
+
+        users[user_key]["banned_until"] = (
+            datetime.now(timezone.utc) + timedelta(hours=hours)
+        ).isoformat()
+        save_json(USERS_FILE, users)
+        revoke_user_tokens(user_key)
+        flash(f"{user_key} est banni pendant {hours} h.", "success")
+        return redirect(url_for("staff_panel"))
+
+    if action == "unban":
+        users[user_key].pop("banned_until", None)
+        save_json(USERS_FILE, users)
+        flash(f"Bannissement retirÃ© pour {user_key}.", "success")
+        return redirect(url_for("staff_panel"))
+
+    if action == "delete":
+        confirmation = request.form.get("confirm_username", "").strip()
+        if confirmation.casefold() != user_key.casefold():
+            flash("Pour supprimer ce compte, Ã©cris exactement son pseudo.", "error")
+            return redirect(url_for("staff_panel"))
+
+        try:
+            remove_user_account(user_key)
+        except RuntimeError as error:
+            flash(str(error), "error")
+            return redirect(url_for("staff_panel"))
+        flash(f"Le compte {user_key}, ses conversations et ses salons Discord ont Ã©tÃ© supprimÃ©s.", "success")
+        return redirect(url_for("staff_panel"))
+
+    return "Action staff inconnue.", 404
 
 
 # ============================================================

@@ -23,6 +23,10 @@ services:
         value: "true"
       - key: DISCORD_RESPONSE_TIMEOUT_SECONDS
         value: "240"
+      - key: ALLOW_IP_AUTOLOGIN
+        value: "false"
+      - key: STAFF_PASSWORD
+        sync: false
       - key: DISCORD_TOKEN
         sync: false
       - key: DISCORD_CATEGORY_ID

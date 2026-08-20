@@ -22,7 +22,7 @@
     <aside class="sidebar">
 
         <div class="brand">
-            <img src="/logo.png" alt="NathGPT">
+            <img src="/logo.png" alt="NathGPT" class="staff-trigger" data-staff-trigger role="button" tabindex="0" aria-label="NathGPT">
             <span>NathGPT</span>
         </div>
 
@@ -55,6 +55,14 @@
             </div>
 
             <a
+                href="{{ url_for('settings') }}"
+                class="settings-button"
+                title="Paramètres"
+            >
+                ⚙
+            </a>
+
+            <a
                 href="{{ url_for('logout') }}"
                 class="logout-button"
                 title="Se déconnecter"
@@ -76,18 +84,30 @@
         <div class="topbar">
 
             <div class="mobile-brand">
-                <img src="/logo.png" alt="NathGPT">
+                <img src="/logo.png" alt="NathGPT" class="staff-trigger" data-staff-trigger role="button" tabindex="0" aria-label="NathGPT">
                 <span>NathGPT</span>
             </div>
 
-            <button
-                class="mobile-new-chat"
-                type="button"
-                onclick="newChat()"
-                aria-label="Nouvelle discussion"
-            >
-                +
-            </button>
+            <div class="mobile-actions">
+                <button
+                    class="mobile-history-toggle"
+                    type="button"
+                    onclick="toggleMobileHistory()"
+                    aria-label="Ouvrir les discussions"
+                    aria-controls="mobileHistoryOverlay"
+                >
+                    ☰
+                </button>
+
+                <button
+                    class="mobile-new-chat"
+                    type="button"
+                    onclick="newChat()"
+                    aria-label="Nouvelle discussion"
+                >
+                    +
+                </button>
+            </div>
 
         </div>
 
@@ -190,6 +210,29 @@
 
     </main>
 
+    <div
+        class="mobile-history-overlay"
+        id="mobileHistoryOverlay"
+        aria-hidden="true"
+    >
+        <button
+            class="mobile-history-backdrop"
+            type="button"
+            onclick="closeMobileHistory()"
+            aria-label="Fermer les discussions"
+        ></button>
+
+        <aside class="mobile-history-sheet" aria-label="Historique des discussions">
+            <div class="mobile-history-header">
+                <strong>Discussions</strong>
+                <button type="button" onclick="closeMobileHistory()" aria-label="Fermer">×</button>
+            </div>
+            <button type="button" class="mobile-history-new" onclick="newChat()">＋ Nouvelle discussion</button>
+            <div class="mobile-history-list" id="mobileHistoryList"></div>
+            <a class="mobile-history-settings" href="{{ url_for('settings') }}">⚙ Paramètres</a>
+        </aside>
+    </div>
+
 </div>
 
 
@@ -216,6 +259,9 @@ const conversation =
 
 const historyList =
     document.getElementById("historyList");
+
+const mobileHistoryList =
+    document.getElementById("mobileHistoryList");
 
 const referenceImagesInput =
     document.getElementById("referenceImages");
@@ -251,6 +297,44 @@ let selectedReferenceImages = [];
 let generationStartedAt = 0;
 
 let learnedGenerationDuration = getLearnedGenerationDuration();
+
+let thinkingPreviewTimer = null;
+
+let responseRevealTimer = null;
+
+let staffLogoClickCount = 0;
+let staffLogoClickTimer = null;
+
+
+function registerStaffLogoClick() {
+
+    staffLogoClickCount += 1;
+
+    if (staffLogoClickTimer) {
+        clearTimeout(staffLogoClickTimer);
+    }
+
+    if (staffLogoClickCount >= 10) {
+        window.location.href = "{{ url_for('staff_panel') }}";
+        return;
+    }
+
+    staffLogoClickTimer = setTimeout(() => {
+        staffLogoClickCount = 0;
+        staffLogoClickTimer = null;
+    }, 4000);
+}
+
+
+document.querySelectorAll("[data-staff-trigger]").forEach((logo) => {
+    logo.addEventListener("click", registerStaffLogoClick);
+    logo.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            registerStaffLogoClick();
+        }
+    });
+});
 
 
 /* ========================================================= */
@@ -634,9 +718,8 @@ function listenForDiscordEvents(jobId) {
         stream.close();
         activeDiscordStream = null;
         finishDiscordTurn();
-        hideThinking();
+        revealThinkingResponse(payload.message || "Réponse Discord vide.");
         removeImageGeneration();
-        addAssistantMessage(payload.message || "Réponse Discord vide.");
         loadConversations();
     };
 
@@ -702,6 +785,92 @@ function addAssistantMessage(text) {
 }
 
 
+function revealThinkingResponse(text) {
+
+    const thinking = document.getElementById("aiThinking");
+
+    if (thinkingPreviewTimer) {
+        clearTimeout(thinkingPreviewTimer);
+        thinkingPreviewTimer = null;
+    }
+
+    if (responseRevealTimer) {
+        clearTimeout(responseRevealTimer);
+        responseRevealTimer = null;
+    }
+
+    const message = document.createElement("div");
+    message.className = "assistant-message assistant-reveal";
+
+    const bubble = document.createElement("div");
+    bubble.className = "assistant-bubble";
+    bubble.setAttribute("aria-live", "polite");
+    bubble.classList.add("is-typing");
+
+    const answerCopy = document.createElement("span");
+    answerCopy.className = "answer-reveal-copy";
+
+    const answerCaret = document.createElement("span");
+    answerCaret.className = "answer-reveal-caret";
+    answerCaret.setAttribute("aria-hidden", "true");
+
+    bubble.append(answerCopy, answerCaret);
+    message.appendChild(bubble);
+
+    if (thinking) {
+        thinking.replaceWith(message);
+    }
+    else {
+        messages.appendChild(message);
+    }
+
+    // Keeps one blurred frame before typing the real final answer.
+    void bubble.offsetWidth;
+    requestAnimationFrame(() => {
+        message.classList.add("is-revealed");
+        typeFinalResponse(bubble, answerCopy, text);
+    });
+    scrollToBottom();
+}
+
+
+function typeFinalResponse(bubble, answerCopy, text) {
+
+    const finalText = String(text || "Réponse Discord vide.");
+    const maximumDuration = 11000;
+    const minimumDuration = 1600;
+    const duration = Math.max(
+        minimumDuration,
+        Math.min(maximumDuration, finalText.length * 20)
+    );
+    const interval = 30;
+    const charactersPerTick = Math.max(
+        1,
+        Math.ceil(finalText.length / Math.max(1, duration / interval))
+    );
+    let characterIndex = 0;
+
+    const writeNextPart = () => {
+        characterIndex = Math.min(
+            finalText.length,
+            characterIndex + charactersPerTick
+        );
+        answerCopy.textContent = finalText.slice(0, characterIndex);
+        scrollToBottom();
+
+        if (characterIndex < finalText.length) {
+            responseRevealTimer = setTimeout(writeNextPart, interval);
+        }
+        else {
+            responseRevealTimer = null;
+            bubble.classList.remove("is-typing");
+        }
+    };
+
+    writeNextPart();
+}
+
+
 function renderReferencePreview() {
 
     referencePreview.innerHTML = "";
@@ -737,6 +906,53 @@ function clearReferenceImages() {
 /* HISTORIQUE ENREGISTRE */
 /* ========================================================= */
 
+function toggleMobileHistory() {
+
+    const overlay = document.getElementById("mobileHistoryOverlay");
+    const isOpen = overlay.classList.contains("is-open");
+
+    if (isOpen) {
+        closeMobileHistory();
+        return;
+    }
+
+    overlay.classList.add("is-open");
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("mobile-history-open");
+    loadConversations();
+}
+
+
+function closeMobileHistory() {
+
+    const overlay = document.getElementById("mobileHistoryOverlay");
+    overlay.classList.remove("is-open");
+    overlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("mobile-history-open");
+}
+
+
+function renderConversationHistory(items) {
+
+    historyList.innerHTML = "";
+    mobileHistoryList.innerHTML = "";
+
+    for (const item of items) {
+        const createItem = () => {
+            const history = document.createElement("button");
+            history.type = "button";
+            history.className = "history-item";
+            history.textContent = item.title || "Nouvelle discussion";
+            history.title = history.textContent;
+            history.onclick = () => openConversation(item.id);
+            return history;
+        };
+
+        historyList.appendChild(createItem());
+        mobileHistoryList.appendChild(createItem());
+    }
+}
+
 async function loadConversations() {
 
     try {
@@ -749,17 +965,8 @@ async function loadConversations() {
 
 
         const payload = await response.json();
-        historyList.innerHTML = "";
-
-        for (const item of payload.conversations || []) {
-
-            const history = document.createElement("div");
-            history.className = "history-item";
-            history.textContent = item.title || "Nouvelle discussion";
-            history.title = history.textContent;
-            history.onclick = () => openConversation(item.id);
-            historyList.appendChild(history);
-        }
+        const savedItems = payload.conversations || [];
+        renderConversationHistory(savedItems);
 
 
         if (shouldRestoreLastConversation) {
@@ -772,7 +979,7 @@ async function loadConversations() {
 
             if (
                 lastConversation &&
-                (payload.conversations || []).some(
+                savedItems.some(
                     item => item.id === lastConversation
                 )
             ) {
@@ -793,6 +1000,8 @@ async function openConversation(conversationId) {
     if (isDiscordTurnActive) {
         return;
     }
+
+    closeMobileHistory();
 
     try {
 
@@ -1109,6 +1318,13 @@ function showThinking() {
 
         </div>
 
+        <div class="thinking-preview" aria-live="polite">
+            <div class="thinking-preview-caption">Une réponse se construit</div>
+            <div class="thinking-preview-line">
+                <span class="thinking-preview-copy"></span><span class="thinking-preview-caret"></span>
+            </div>
+        </div>
+
     `;
 
 
@@ -1118,10 +1334,22 @@ function showThinking() {
 
     scrollToBottom();
 
+    animateThinkingPreview();
+
 }
 
 
 function hideThinking() {
+
+    if (thinkingPreviewTimer) {
+        clearTimeout(thinkingPreviewTimer);
+        thinkingPreviewTimer = null;
+    }
+
+    if (responseRevealTimer) {
+        clearTimeout(responseRevealTimer);
+        responseRevealTimer = null;
+    }
 
     const thinking =
         document.getElementById(
@@ -1132,6 +1360,52 @@ function hideThinking() {
         thinking.remove();
     }
 
+}
+
+
+function animateThinkingPreview() {
+
+    const preview = document.querySelector("#aiThinking .thinking-preview-copy");
+
+    if (!preview) {
+        return;
+    }
+
+    const draft = [
+        "J'analyse attentivement ta demande.",
+        "Je repère les éléments les plus importants.",
+        "Je mets les idées dans le bon ordre.",
+        "Je vérifie les détails utiles.",
+        "Je cherche une réponse claire et complète.",
+        "Je prépare les explications nécessaires.",
+        "Je simplifie les points plus techniques.",
+        "Je relis la réponse avant de l'envoyer.",
+        "Presque terminé, encore un instant.",
+        "La réponse finale arrive maintenant..."
+    ].join("\n");
+
+    let characterIndex = 0;
+
+    const writeNextCharacter = () => {
+        const currentPreview = document.querySelector("#aiThinking .thinking-preview-copy");
+
+        if (!currentPreview) {
+            thinkingPreviewTimer = null;
+            return;
+        }
+
+        currentPreview.textContent = draft.slice(0, characterIndex);
+
+        if (characterIndex < draft.length) {
+            characterIndex += 1;
+            thinkingPreviewTimer = setTimeout(writeNextCharacter, 38);
+            return;
+        }
+
+        thinkingPreviewTimer = null;
+    };
+
+    writeNextCharacter();
 }
 
 
@@ -1178,14 +1452,14 @@ function showImageGeneration() {
             <div>
 
                 <div class="image-generation-title">
-                    NathGPT crée votre image
+                    Création de votre image
                 </div>
 
                 <div
                     class="image-generation-status"
                     id="imageGenerationStatus"
                 >
-                    Création des micro-étoiles...
+                    Votre idée prend forme...
                 </div>
 
             </div>
@@ -1198,17 +1472,23 @@ function showImageGeneration() {
             id="imageGenerationFrame"
         >
 
+            <div class="generation-aurora" aria-hidden="true">
+                <span class="generation-aurora-one"></span>
+                <span class="generation-aurora-two"></span>
+                <span class="generation-aurora-three"></span>
+            </div>
+
             <div class="generation-grid" aria-hidden="true"></div>
             <div class="generation-sweep" aria-hidden="true"></div>
 
             <div class="generation-hud generation-hud-top" aria-hidden="true">
                 <span class="generation-live-dot"></span>
-                CANVAS NEURAL
+                NATHGPT IMAGE
             </div>
 
             <div class="generation-hud generation-hud-right" aria-hidden="true">
-                <span>SYNTHESE</span>
-                <span>EN DIRECT</span>
+                <span>CRÉATION</span>
+                <span>EN COURS</span>
             </div>
 
             <div class="generation-orbits" aria-hidden="true">
@@ -1243,7 +1523,7 @@ function showImageGeneration() {
                 class="generation-stage-text"
                 id="generationStageText"
             >
-                Génération en cours
+                Préparation
             </div>
 
 
@@ -3607,6 +3887,8 @@ function scrollToBottom() {
 
 function newChat() {
 
+    closeMobileHistory();
+
     hideThinking();
 
 
@@ -3660,6 +3942,12 @@ function newChat() {
 input.focus();
 
 loadConversations();
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+        closeMobileHistory();
+    }
+});
 
 </script>
 
