@@ -1913,65 +1913,6 @@ textarea {
 
 
 /* ========================================================= */
-/* TEST */
-/* ========================================================= */
-
-.generation-test-area {
-    width:
-        100%;
-
-    display:
-        flex;
-
-    justify-content:
-        center;
-
-    margin-top:
-        16px;
-}
-
-
-.test-image-button {
-    padding:
-        9px 15px;
-
-    border:
-        1px solid
-        #4c4c4c;
-
-    border-radius:
-        10px;
-
-    color:
-        #ddd;
-
-    background:
-        #292929;
-
-    cursor:
-        pointer;
-
-    font-size:
-        12px;
-
-    transition:
-        .2s;
-}
-
-
-.test-image-button:hover {
-    background:
-        #373737;
-
-    border-color:
-        #666;
-
-    transform:
-        translateY(-1px);
-}
-
-
-/* ========================================================= */
 /* INPUT */
 /* ========================================================= */
 

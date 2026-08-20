@@ -1268,26 +1268,6 @@ function showImageGeneration() {
         </div>
 
 
-        <!--
-            BOUTON TEMPORAIRE.
-            Supprime ce bloc quand ton générateur
-            d'images sera réellement connecté.
-        -->
-
-        <div
-            class="generation-test-area"
-            id="generationTestArea"
-        >
-
-            <button
-                class="test-image-button"
-                onclick="testGeneratedImage()"
-            >
-                TEST avec BRE.png
-            </button>
-
-        </div>
-
     `;
 
 
@@ -1301,34 +1281,6 @@ function showImageGeneration() {
     scrollToBottom();
 
 }
-
-
-/* ========================================================= */
-/* TEST TEMPORAIRE */
-/* ========================================================= */
-
-function testGeneratedImage() {
-
-    receiveGeneratedImage(
-        "/BRE.png"
-    );
-
-}
-
-
-/* ========================================================= */
-/* PLUS TARD */
-/* ========================================================= */
-
-/*
-
-Quand ton générateur d'images sera connecté :
-
-receiveGeneratedImage(
-    data.image_url
-);
-
-*/
 
 
 /* ========================================================= */
@@ -1351,20 +1303,6 @@ function receiveGeneratedImage(imageUrl) {
 
             if (generation) {
                 generation.dataset.imageUrl = imageUrl;
-            }
-
-
-            const testArea =
-                document.getElementById(
-                    "generationTestArea"
-                );
-
-
-            if (testArea) {
-
-                testArea.style.display =
-                    "none";
-
             }
 
 
