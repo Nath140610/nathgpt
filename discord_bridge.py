@@ -61,6 +61,7 @@ class DiscordBridge:
         self._client = None
         self._discord = None
         self._started = False
+        self._startup_error = None
         self._result_handler = None
         self._jobs = {}
         self._channel_jobs = {}
@@ -88,6 +89,8 @@ class DiscordBridge:
 
         self._discord = discord
         self._started = True
+        self._startup_error = None
+        print("Connexion du bot Discord en cours...", flush=True)
         threading.Thread(target=self._run, name="nathgpt-discord", daemon=True).start()
 
     def set_result_handler(self, handler):
@@ -98,10 +101,20 @@ class DiscordBridge:
         """Envoie une question et retourne immédiatement l'identifiant de son flux."""
         if not self.enabled:
             raise RuntimeError("Discord n'est pas configuré : DISCORD_TOKEN est manquant.")
-        if not self._started or not self._loop:
-            raise RuntimeError("Le bot Discord est en cours de démarrage.")
-        if not self._ready.wait(timeout=20):
-            raise RuntimeError("Le bot Discord ne s'est pas connecté dans les 20 secondes.")
+        if not self._started:
+            self.start()
+
+        if self._startup_error:
+            raise RuntimeError(self._startup_error)
+
+        if not self._ready.wait(timeout=25):
+            if self._startup_error:
+                raise RuntimeError(self._startup_error)
+
+            raise RuntimeError(
+                "Le bot Discord ne s'est pas connecté. Vérifie le token "
+                "et active Message Content Intent dans Discord Developer Portal."
+            )
 
         job_id = uuid.uuid4().hex
         with self._lock:
@@ -161,18 +174,32 @@ class DiscordBridge:
         return job["conversation_id"]
 
     def _run(self):
-        asyncio.run(self._run_client())
+        try:
+            asyncio.run(self._run_client())
+        except Exception as error:
+            self._startup_error = (
+                "La connexion du bot Discord a échoué : "
+                f"{type(error).__name__}. Vérifie DISCORD_TOKEN et les intents."
+            )
+            self._started = False
+            self._ready.clear()
+            print(self._startup_error, flush=True)
 
     async def _run_client(self):
+        self._loop = asyncio.get_running_loop()
+
         intents = self._discord.Intents.default()
         intents.message_content = True
         self._client = self._discord.Client(intents=intents)
 
         @self._client.event
         async def on_ready():
-            self._loop = asyncio.get_running_loop()
             self._ready.set()
-            print(f"Bot Discord connecté : {self._client.user}")
+            print(f"Bot Discord connecté : {self._client.user}", flush=True)
+
+        @self._client.event
+        async def on_disconnect():
+            self._ready.clear()
 
         @self._client.event
         async def on_message(message):
