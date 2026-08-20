@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: nathgpt
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --workers 1 --threads 8 --bind 0.0.0.0:$PORT server:app
+    healthCheckPath: /health
+    disk:
+      name: nathgpt-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: NATHGPT_DATA_DIR
+        value: /var/data
+      - key: NATHGPT_SECRET_KEY
+        generateValue: true
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: DISCORD_AUTOSTART
+        value: "true"
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_CATEGORY_ID
+        value: "1539922989200576512"
+      - key: DISCORD_TARGET_BOT_ID
+        value: "1539359893063209053"
