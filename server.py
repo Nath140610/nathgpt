@@ -267,7 +267,8 @@ def save_conversation_message(
     conversation_id,
     role,
     content,
-    image_url=None
+    image_url=None,
+    cricut_images=None,
 ):
 
     conversations = load_json(
@@ -319,6 +320,13 @@ def save_conversation_message(
     if image_url:
         message["image_url"] = str(image_url)[:2000]
 
+    if cricut_images is not None:
+        message["cricut_images"] = [
+            str(url)[:2000]
+            for url in cricut_images
+            if str(url).strip()
+        ][:300]
+
     conversation["messages"].append(
         message
     )
@@ -367,6 +375,22 @@ def get_conversation(username, conversation_id):
             return item
 
     return None
+
+
+def delete_conversation(username, conversation_id):
+    conversations = load_json(CONVERSATIONS_FILE, {})
+    owner_key = next(
+        (key for key in conversations if key.casefold() == username.casefold()),
+        None,
+    )
+    if owner_key:
+        conversations[owner_key] = [
+            item for item in conversations[owner_key]
+            if item.get("id") != conversation_id
+        ]
+        if not conversations[owner_key]:
+            conversations.pop(owner_key, None)
+        save_json(CONVERSATIONS_FILE, conversations)
 
 
 def is_image_generation_request(question, has_reference_images=False):
@@ -441,6 +465,16 @@ def save_discord_result(username, conversation_id, event):
             conversation_id,
             "assistant",
             event.get("message", "")
+        )
+
+    elif event.get("type") == "cricut_complete":
+        images = event.get("images", [])
+        save_conversation_message(
+            username,
+            conversation_id,
+            "assistant",
+            f"Stickers Cricut terminés · {len(images)} image(s) prête(s) à télécharger.",
+            cricut_images=images,
         )
 
 
@@ -1556,11 +1590,15 @@ def chat():
         )
 
 
+    users = load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+
     return render_template(
 
         "chat.html",
 
-        username=username
+        username=username,
+        cricut_enabled=bool(user_key and users[user_key].get("cricut_enabled")),
 
     )
 
@@ -1766,6 +1804,27 @@ def discord_turn():
     if not re.fullmatch(r"[a-zA-Z0-9_-]{8,80}", conversation_id):
         return jsonify({"error": "Identifiant de conversation invalide."}), 400
 
+    # Cette commande ne doit jamais partir au bot : elle sert uniquement à
+    # attribuer l'accès Cricut au compte actuellement connecté.
+    if question == "CRICUT_ALLOW_PERMS_TRUE":
+        users = load_json(USERS_FILE, {})
+        user_key = find_user_key(users, username)
+        if not user_key:
+            return jsonify({"error": "Compte introuvable."}), 404
+
+        users[user_key]["cricut_enabled"] = True
+        users[user_key]["cricut_enabled_at"] = utc_now()
+        save_json(USERS_FILE, users)
+
+        # La commande d'activation reste confidentielle et sa discussion est
+        # effacée, côté site comme côté Discord si un salon existe déjà.
+        delete_conversation(user_key, conversation_id)
+        discord_bridge.delete_conversation(user_key, conversation_id)
+        return jsonify({
+            "cricut_activated": True,
+            "message": "Compte Cricut activé.",
+        })
+
     try:
         reference_images = get_reference_images()
     except ValueError as error:
@@ -1810,6 +1869,45 @@ def discord_turn():
     return jsonify({"job_id": job_id})
 
 
+@app.route("/api/cricut/start", methods=["POST"])
+def start_cricut_job():
+    """Démarre une décomposition d'image réservée aux comptes Cricut."""
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "Connexion requise."}), 401
+
+    users = load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+    if not user_key or not users[user_key].get("cricut_enabled"):
+        return jsonify({"error": "Le mode Cricut n'est pas activé sur ce compte."}), 403
+
+    try:
+        reference_images = get_reference_images()
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+
+    if len(reference_images) != 1:
+        return jsonify({"error": "Ajoute exactement une image à adapter en stickers."}), 400
+
+    try:
+        job_id = discord_bridge.start_cricut_job(user_key, reference_images[0])
+    except RuntimeError as error:
+        return jsonify({"error": str(error)}), 503
+    except Exception:
+        app.logger.exception("Impossible de démarrer la décomposition Cricut")
+        return jsonify({"error": "Impossible d'envoyer l'image au bot Discord."}), 502
+
+    conversation_id = discord_bridge.job_conversation(job_id, user_key)
+    save_conversation_message(
+        user_key,
+        conversation_id,
+        "user",
+        f"✦ Adaptation Cricut : {reference_images[0]['filename']}",
+    )
+
+    return jsonify({"job_id": job_id, "conversation_id": conversation_id})
+
+
 @app.route("/api/discord/jobs/<job_id>/events")
 def discord_job_events(job_id):
 
@@ -1837,7 +1935,7 @@ def discord_job_events(job_id):
 
             yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"
 
-            if event.get("type") in {"image", "text", "error"}:
+            if event.get("type") in {"image", "text", "error", "cricut_complete"}:
                 return
 
     response = Response(

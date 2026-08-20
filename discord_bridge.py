@@ -131,6 +131,7 @@ class DiscordBridge:
                 "username": username,
                 "conversation_id": conversation_id,
                 "conversation_key": f"{username.casefold()}:{conversation_id}",
+                "kind": "chat",
                 "expects_image": bool(expects_image),
                 "text_messages": {},
                 "text_message_order": [],
@@ -165,6 +166,52 @@ class DiscordBridge:
 
         return job_id
 
+    def start_cricut_job(self, username, image):
+        """Envoie une image Ã  dÃ©composer dans un salon Cricut dÃ©diÃ©."""
+        if not self.enabled:
+            raise RuntimeError("Discord n'est pas configurÃ© : DISCORD_TOKEN est manquant.")
+        if not self._started:
+            self.start()
+        if self._startup_error:
+            raise RuntimeError(self._startup_error)
+        if not self._ready.wait(timeout=25):
+            raise RuntimeError("Le bot Discord ne s'est pas connectÃ©.")
+
+        job_id = uuid.uuid4().hex
+        conversation_id = f"cricut-{job_id[:12]}"
+        with self._lock:
+            self._jobs[job_id] = {
+                "events": Queue(),
+                "username": username,
+                "conversation_id": conversation_id,
+                "conversation_key": f"{username.casefold()}:{conversation_id}",
+                "kind": "cricut",
+                "cricut_total": 0,
+                "cricut_current": 0,
+                "cricut_images": [],
+                "cricut_completion_timer": None,
+            }
+
+        future = asyncio.run_coroutine_threadsafe(
+            self._send_cricut_job(job_id, username, conversation_id, image),
+            self._loop,
+        )
+        try:
+            future.result(timeout=30)
+        except Exception:
+            with self._lock:
+                self._jobs.pop(job_id, None)
+            raise
+
+        timeout_timer = threading.Timer(
+            max(self.response_timeout, 60 * 60),
+            self._timeout_job,
+            args=(job_id,),
+        )
+        timeout_timer.daemon = True
+        timeout_timer.start()
+        return job_id
+
     def next_event(self, job_id, username, timeout=15):
         with self._lock:
             job = self._jobs.get(job_id)
@@ -174,6 +221,13 @@ class DiscordBridge:
         try:
             return job["events"].get(timeout=timeout)
         except Empty:
+            # Le navigateur peut fermer sa connexion exactement pendant la
+            # dernière réponse. La conserver permet à Cricut de restaurer les
+            # images et les téléchargements au prochain retour sur le site.
+            with self._lock:
+                current_job = self._jobs.get(job_id)
+                if current_job and current_job.get("username") == username:
+                    return current_job.get("final_event")
             return None
 
     def job_conversation(self, job_id, username):
@@ -272,6 +326,30 @@ class DiscordBridge:
             self._save_conversations()
             self._save_image_messages()
 
+    def delete_conversation(self, username, conversation_id):
+        """Efface une conversation de dÃ©verrouillage sans bloquer le site."""
+        key = f"{username.casefold()}:{conversation_id}"
+        with self._lock:
+            channel_id = self._conversations.get(key)
+
+        if channel_id and self.enabled and self._ready.is_set() and self._loop:
+            try:
+                asyncio.run_coroutine_threadsafe(
+                    self._delete_channels([channel_id]), self._loop
+                ).result(timeout=20)
+            except Exception:
+                # L'activation Cricut reste possible mÃªme si un ancien salon
+                # Discord ne peut plus Ãªtre supprimÃ©.
+                pass
+
+        with self._lock:
+            self._conversations.pop(key, None)
+            self._image_messages.pop(key, None)
+            if channel_id:
+                self._channel_jobs.pop(channel_id, None)
+            self._save_conversations()
+            self._save_image_messages()
+
     async def _delete_channels(self, channel_ids):
         for channel_id in channel_ids:
             channel = self._client.get_channel(channel_id)
@@ -349,6 +427,39 @@ class DiscordBridge:
             )
         self._publish(job_id, {"type": "status", "message": "Demande envoyée au moteur d'image..."})
 
+    async def _send_cricut_job(self, job_id, username, conversation_id, image):
+        category = self._client.get_channel(self.category_id)
+        if category is None:
+            category = await self._client.fetch_channel(self.category_id)
+        if not isinstance(category, self._discord.CategoryChannel):
+            raise RuntimeError("DISCORD_CATEGORY_ID ne correspond pas à une catégorie Discord.")
+
+        safe_user = re.sub(r"[^a-z0-9-]+", "-", username.casefold()).strip("-") or "utilisateur"
+        channel = await category.create_text_channel(
+            f"cricut-{safe_user}-{conversation_id[-8:]}"[:100],
+            topic=f"Décomposition Cricut de {username}",
+            reason="Nouvelle demande Cricut NathGPT",
+        )
+
+        with self._lock:
+            self._conversations[f"{username.casefold()}:{conversation_id}"] = channel.id
+            self._channel_jobs[channel.id] = job_id
+            self._save_conversations()
+
+        file = self._discord.File(
+            io.BytesIO(image["data"]),
+            filename=image["filename"],
+        )
+        await channel.send(
+            "decomp_cricut",
+            file=file,
+            allowed_mentions=self._discord.AllowedMentions.none(),
+        )
+        self._publish(
+            job_id,
+            {"type": "cricut_status", "message": "Analyse de l'image et estimation du temps..."},
+        )
+
     async def _get_or_create_channel(self, username, conversation_id):
         key = f"{username.casefold()}:{conversation_id}"
         with self._lock:
@@ -393,6 +504,10 @@ class DiscordBridge:
             job = self._jobs.get(job_id) if job_id else None
 
         if not job_id or not job:
+            return
+
+        if job.get("kind") == "cricut":
+            self._handle_cricut_message(job_id, message)
             return
 
         image_url = self._image_url_from(message)
@@ -470,7 +585,107 @@ class DiscordBridge:
                 final=True,
             )
 
-    def _image_url_from(self, message):
+    def _handle_cricut_message(self, job_id, message):
+        """Traduit les messages de progression Cricut en Ã©vÃ©nements web."""
+        content = (message.content or "").strip()
+        image_urls = self._image_urls_from(message)
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+
+            for image_url in image_urls:
+                if image_url not in job["cricut_images"]:
+                    job["cricut_images"].append(image_url)
+
+        plan_match = re.search(
+            r"(\d+)\s+images?\s+[àa]\s+g[ée]n[ée]rer.*?"
+            r"(?:image\s+g[ée]n[ée]r[ée]e?\s*)?(\d+)\s*/\s*(\d+)",
+            content,
+            re.I | re.S,
+        )
+        sticker_match = re.search(
+            r"(?:sticker|image)\s*(\d+)\s*/\s*(\d+)",
+            content,
+            re.I,
+        )
+
+        if plan_match:
+            total = int(plan_match.group(1))
+            current = int(plan_match.group(2))
+            denominator = int(plan_match.group(3))
+            total = denominator if denominator else total
+            remaining_match = re.search(r"temps\s+restant\s*:?\s*(.+?)(?:\s+image\s+g|$)", content, re.I | re.S)
+            remaining = remaining_match.group(1).strip() if remaining_match else "Estimation en cours"
+            self._publish_cricut_progress(job_id, current, total, remaining, plan=True)
+        elif sticker_match:
+            self._publish_cricut_progress(
+                job_id,
+                int(sticker_match.group(1)),
+                int(sticker_match.group(2)),
+                None,
+                plan=False,
+            )
+        elif content:
+            self._publish(job_id, {"type": "cricut_status", "message": content})
+
+    def _publish_cricut_progress(self, job_id, current, total, remaining, plan):
+        current = max(0, current)
+        total = max(1, total)
+        current = min(current, total)
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+            job["cricut_current"] = max(job.get("cricut_current", 0), current)
+            job["cricut_total"] = max(job.get("cricut_total", 0), total)
+            current = job["cricut_current"]
+            total = job["cricut_total"]
+
+        self._publish(
+            job_id,
+            {
+                "type": "cricut_plan" if plan else "cricut_progress",
+                "current": current,
+                "total": total,
+                "remaining": remaining,
+            },
+        )
+
+        if current >= total:
+            self._schedule_cricut_completion(job_id)
+
+    def _schedule_cricut_completion(self, job_id):
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+            previous_timer = job.get("cricut_completion_timer")
+            if previous_timer:
+                previous_timer.cancel()
+            timer = threading.Timer(2.0, self._publish_cricut_completion, args=(job_id,))
+            timer.daemon = True
+            job["cricut_completion_timer"] = timer
+            timer.start()
+
+    def _publish_cricut_completion(self, job_id):
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if not job:
+                return
+            job["cricut_completion_timer"] = None
+            images = list(job.get("cricut_images", []))
+
+        self._publish(
+            job_id,
+            {"type": "cricut_complete", "images": images},
+            final=True,
+        )
+
+    def _image_urls_from(self, message):
+        urls = []
         for attachment in message.attachments:
             content_type = attachment.content_type or ""
             filename = getattr(attachment, "filename", "") or ""
@@ -479,18 +694,26 @@ class DiscordBridge:
                 re.search(r"\.(png|jpe?g|webp|gif|avif)(?:\?|$)", filename, re.I) or
                 re.search(r"\.(png|jpe?g|webp|gif|avif)(?:\?|$)", attachment.url, re.I)
             ):
-                return attachment.url
+                urls.append(attachment.url)
 
         for embed in message.embeds:
             if embed.image and embed.image.url:
-                return embed.image.url
+                urls.append(embed.image.url)
             if embed.thumbnail and embed.thumbnail.url:
-                return embed.thumbnail.url
+                urls.append(embed.thumbnail.url)
             if getattr(embed, "type", "") == "image" and getattr(embed, "url", None):
-                return embed.url
+                urls.append(embed.url)
 
-        match = re.search(r"https?://\S+\.(?:png|jpe?g|webp|gif|avif)(?:\?\S*)?", message.content or "", re.I)
-        return match.group(0) if match else None
+        urls.extend(re.findall(
+            r"https?://\S+\.(?:png|jpe?g|webp|gif|avif)(?:\?\S*)?",
+            message.content or "",
+            re.I,
+        ))
+        return list(dict.fromkeys(urls))
+
+    def _image_url_from(self, message):
+        urls = self._image_urls_from(message)
+        return urls[0] if urls else None
 
     @staticmethod
     def _is_image_completion_notice(content):
@@ -541,6 +764,11 @@ class DiscordBridge:
                 return
             job["events"].put(event)
             if final:
+                job["final_event"] = event
+                cricut_completion_timer = job.get("cricut_completion_timer")
+                if cricut_completion_timer:
+                    cricut_completion_timer.cancel()
+                    job["cricut_completion_timer"] = None
                 text_result_timer = job.get("text_result_timer")
                 if text_result_timer:
                     text_result_timer.cancel()

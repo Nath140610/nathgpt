@@ -2861,6 +2861,249 @@ textarea::placeholder {
 
 
 /* ========================================================= */
+/* CRICUT STICKER WORKSHOP */
+/* ========================================================= */
+
+.cricut-entry,
+.mobile-cricut-entry {
+    width: calc(100% - 20px);
+    margin: -1px 10px 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(108, 239, 181, .23);
+    border-radius: 12px;
+    color: #dcfff0;
+    background: linear-gradient(115deg, rgba(33, 147, 103, .32), rgba(80, 220, 165, .08));
+    box-shadow: inset 0 1px rgba(255,255,255,.08), 0 8px 22px rgba(0,0,0,.16);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: .025em;
+    text-align: left;
+    cursor: pointer;
+    transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+
+.cricut-entry:hover,
+.mobile-cricut-entry:hover {
+    transform: translateY(-1px);
+    border-color: rgba(117, 255, 192, .52);
+    background: linear-gradient(115deg, rgba(36, 177, 120, .47), rgba(80, 220, 165, .14));
+}
+
+.mobile-cricut-entry { display: none; }
+
+.cricut-activation {
+    position: relative;
+    display: grid;
+    width: min(100%, 470px);
+    min-height: 205px;
+    margin: clamp(55px, 13vh, 120px) auto 28px;
+    overflow: hidden;
+    place-items: center;
+    border: 1px solid rgba(137, 255, 202, .34);
+    border-radius: 27px;
+    color: #effff6;
+    background:
+        radial-gradient(circle at 50% 28%, rgba(129, 255, 198, .25), transparent 33%),
+        radial-gradient(circle at 7% 96%, rgba(127, 155, 255, .17), transparent 34%),
+        linear-gradient(145deg, rgba(35, 90, 65, .88), rgba(30, 40, 42, .94));
+    box-shadow: 0 30px 80px rgba(0,0,0,.34), 0 0 50px rgba(65,241,154,.15), inset 0 1px rgba(255,255,255,.17);
+    animation: cricut-activation-in .62s cubic-bezier(.17,.92,.26,1.15) both;
+    isolation: isolate;
+}
+
+.cricut-activation::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    width: 250px;
+    aspect-ratio: 1;
+    border: 1px solid rgba(170,255,214,.18);
+    border-radius: 50%;
+    box-shadow: 0 0 0 20px rgba(133,255,195,.035), 0 0 0 52px rgba(135,165,255,.025);
+    animation: cricut-activation-ring 1.7s ease-out infinite;
+}
+
+.cricut-activation-seal {
+    display: grid;
+    width: 66px;
+    height: 66px;
+    margin-top: 18px;
+    place-items: center;
+    border: 1px solid rgba(226,255,240,.68);
+    border-radius: 50%;
+    color: white;
+    background: linear-gradient(145deg, #6bf1ad, #17975e);
+    box-shadow: inset 0 2px rgba(255,255,255,.42), 0 0 0 7px rgba(127,255,191,.12), 0 10px 28px rgba(3,77,43,.35);
+    font-size: 34px;
+    font-weight: 900;
+    animation: cricut-activation-check .7s .19s cubic-bezier(.17,1.5,.28,1) both;
+}
+
+.cricut-activation-copy { margin: -10px 22px 21px; text-align: center; }
+.cricut-activation-copy p { margin: 0 0 4px; color: #a9f9ce; font-size: 10px; font-weight: 850; letter-spacing: .16em; }
+.cricut-activation-copy strong { display: block; font-size: clamp(23px, 4.5vw, 30px); letter-spacing: -.04em; }
+.cricut-activation-copy small { display: block; margin-top: 7px; color: #c5d7cc; font-size: 13px; }
+
+.cricut-activation-spark { position: absolute; z-index: -1; color: #d8ffea; text-shadow: 0 0 18px rgba(120,255,192,.95); animation: cricut-spark-pop 1.55s ease-out infinite; }
+.spark-a { top: 20%; left: 16%; font-size: 23px; }
+.spark-b { top: 18%; right: 17%; font-size: 17px; animation-delay: .32s; }
+.spark-c { bottom: 21%; left: 22%; font-size: 15px; animation-delay: .66s; }
+.spark-d { right: 23%; bottom: 23%; font-size: 21px; animation-delay: .92s; }
+
+.cricut-generation {
+    position: relative;
+    width: min(100%, 720px);
+    margin: 18px auto 32px;
+    padding: clamp(15px, 3vw, 24px);
+    overflow: hidden;
+    border: 1px solid rgba(160, 255, 211, .16);
+    border-radius: 25px;
+    background: radial-gradient(circle at 80% 0%, rgba(84, 255, 174, .11), transparent 30%), rgba(41, 45, 46, .82);
+    box-shadow: 0 25px 65px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.08);
+    animation: cricut-card-in .45s cubic-bezier(.2,.85,.25,1) both;
+}
+
+.cricut-generation::before,
+.cricut-generation::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    pointer-events: none;
+}
+
+.cricut-generation::before {
+    opacity: .72;
+    background:
+        radial-gradient(circle at 9% 17%, #dcfff1 0 1px, transparent 2px),
+        radial-gradient(circle at 27% 76%, rgba(176,255,221,.86) 0 1.5px, transparent 3px),
+        radial-gradient(circle at 68% 12%, rgba(197,222,255,.82) 0 1px, transparent 2px),
+        radial-gradient(circle at 89% 31%, #e8fff4 0 1.4px, transparent 3px),
+        radial-gradient(circle at 82% 81%, rgba(145,255,204,.86) 0 1px, transparent 2px),
+        radial-gradient(circle at 43% 92%, rgba(218,235,255,.72) 0 1px, transparent 2px);
+    background-size: 180px 180px;
+    animation: cricut-star-drift 9s linear infinite;
+}
+
+.cricut-generation::after {
+    inset: -35% -15%;
+    opacity: .42;
+    background: conic-gradient(from 160deg at 50% 50%, transparent 0 16%, rgba(148,255,207,.08) 19%, transparent 23% 48%, rgba(160,189,255,.08) 51%, transparent 55% 100%);
+    animation: cricut-aurora-spin 15s linear infinite;
+}
+
+.cricut-generation > * { position: relative; z-index: 1; }
+
+.cricut-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 15px; }
+.cricut-heading-orb {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid rgba(172, 255, 216, .3);
+    border-radius: 13px;
+    color: #b9ffdb;
+    background: linear-gradient(145deg, rgba(68, 230, 151, .33), rgba(87, 124, 255, .19));
+    box-shadow: 0 0 25px rgba(82, 246, 164, .18);
+}
+.cricut-heading strong { display: block; color: #f2fff8; font-size: 15px; }
+.cricut-heading small { display: block; margin-top: 2px; color: #a5b9ae; font-size: 12px; }
+
+.cricut-preview-frame {
+    position: relative;
+    display: grid;
+    width: min(100%, 360px);
+    /* Format A4 vertical : la référence reste visible pendant le traitement. */
+    aspect-ratio: 210 / 297;
+    margin: 0 auto 15px;
+    overflow: hidden;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 19px;
+    background: repeating-conic-gradient(#303938 0 25%, #27302f 0 50%) 50% / 20px 20px;
+}
+
+.cricut-source-image { width: 100%; height: 100%; object-fit: contain; background: rgba(15,18,18,.18); }
+.cricut-preview-frame::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 15% 20%, rgba(164,255,216,.19), transparent 24%), linear-gradient(125deg, transparent 30%, rgba(255,255,255,.12), transparent 55%); mix-blend-mode: screen; }
+.cricut-loupe {
+    position: absolute;
+    z-index: 2;
+    width: clamp(41px, 10vw, 62px);
+    aspect-ratio: 1;
+    border: 2px solid rgba(232, 255, 245, .75);
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, rgba(255,255,255,.42), rgba(69, 245, 160, .12) 47%, rgba(16, 32, 28, .22));
+    box-shadow: 0 0 0 7px rgba(77, 246, 164, .08), 0 8px 24px rgba(0,0,0,.32), inset 0 0 15px rgba(190,255,221,.23);
+    backdrop-filter: blur(1.5px) saturate(1.4);
+    -webkit-backdrop-filter: blur(1.5px) saturate(1.4);
+}
+.cricut-loupe::after { content: ""; position: absolute; width: 19px; height: 4px; right: -14px; bottom: -7px; border-radius: 5px; background: rgba(235,255,246,.72); transform: rotate(45deg); }
+.loupe-one { left: 17%; top: 20%; animation: cricut-loupe-one 3.7s ease-in-out infinite; }
+.loupe-two { right: 20%; top: 43%; animation: cricut-loupe-two 4.4s ease-in-out infinite .3s; }
+.loupe-three { left: 45%; bottom: 10%; animation: cricut-loupe-three 4s ease-in-out infinite .7s; }
+.cricut-scanline { position: absolute; z-index: 3; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, rgba(184,255,219,.85), transparent); box-shadow: 0 0 18px rgba(96,255,179,.85); animation: cricut-scan 2.7s ease-in-out infinite; }
+
+.cricut-progress-copy { min-height: 20px; margin: 0 0 12px; color: #b7c8be; font-size: 12px; text-align: center; }
+.cricut-sticker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 7px; }
+.cricut-sticker-tile {
+    position: relative;
+    display: grid;
+    min-height: 34px;
+    overflow: hidden;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 10px;
+    color: rgba(237,248,241,.58);
+    background:
+        radial-gradient(circle at 28% 12%, rgba(255,255,255,.16), transparent 30%),
+        linear-gradient(145deg, rgba(255,255,255,.10), rgba(255,255,255,.025) 52%, rgba(0,0,0,.13));
+    box-shadow:
+        inset 0 1px rgba(255,255,255,.10),
+        inset 0 -8px 14px rgba(0,0,0,.12),
+        0 5px 10px rgba(0,0,0,.10);
+    font-size: 9.5px;
+    font-weight: 800;
+    isolation: isolate;
+    transform: translateZ(0);
+    animation: cricut-tile-arrive .42s cubic-bezier(.2,.8,.2,1) both;
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease, color .25s ease;
+}
+.cricut-sticker-tile:nth-child(3n + 2) { animation-delay: .04s; }
+.cricut-sticker-tile:nth-child(3n) { animation-delay: .08s; }
+.cricut-sticker-tile::before { content: ""; position: absolute; z-index: -1; inset: auto 0 0; height: 0; background: linear-gradient(180deg, #88f6be 0%, #36cd83 38%, #158456 100%); box-shadow: inset 0 1px rgba(255,255,255,.36), 0 -8px 20px rgba(113,255,183,.24); transition: height .52s cubic-bezier(.2,.8,.2,1); }
+.cricut-sticker-tile.is-active { border-color: rgba(145, 255, 203, .82); color: #f5fff9; box-shadow: inset 0 1px rgba(255,255,255,.20), 0 0 0 1px rgba(104,255,180,.16), 0 0 20px rgba(64,245,151,.38); transform: translateY(-2px) scale(1.035); }
+.cricut-sticker-tile.is-active::before { height: 38%; animation: cricut-tile-fill 1.35s ease-in-out infinite alternate; }
+.cricut-sticker-tile.is-complete { border-color: rgba(151,255,207,.85); color: transparent; background: linear-gradient(145deg, #4fe09a, #18885b); box-shadow: inset 0 1px rgba(255,255,255,.38), inset 0 -8px 14px rgba(4,68,41,.25), 0 5px 15px rgba(37,222,131,.22); transform: translateY(-1px); }
+.cricut-sticker-tile.is-complete::before { height: 100%; }
+.cricut-sticker-tile.is-complete::after { content: "✓"; position: absolute; color: #fff; font-size: 16px; font-weight: 900; text-shadow: 0 1px 5px rgba(0,0,0,.28); animation: cricut-check-in .34s cubic-bezier(.2,1.35,.3,1) both; }
+
+.cricut-results { margin-top: 17px; }
+.cricut-download-all { width: 100%; padding: 11px 14px; border: 1px solid rgba(145,255,205,.40); border-radius: 13px; color: #eafff3; background: linear-gradient(110deg, rgba(35,165,107,.9), rgba(60,208,147,.65)); box-shadow: 0 8px 22px rgba(8,103,60,.22); font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
+.cricut-result-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 9px; margin-top: 12px; }
+.cricut-result-gallery a { display: block; overflow: hidden; border: 1px solid rgba(150,255,208,.16); border-radius: 13px; background: rgba(255,255,255,.04); aspect-ratio: 1; animation: cricut-result-in .45s both; }
+.cricut-result-gallery img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.cricut-result-gallery a:hover img { transform: scale(1.05); }
+.cricut-empty-result { margin: 0; color: #e4c794; font-size: 13px; text-align: center; }
+
+@keyframes cricut-card-in { from { opacity: 0; transform: translateY(16px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes cricut-loupe-one { 0%,100% { transform: translate(0,0) scale(.92); } 50% { transform: translate(55%,32%) scale(1.08); } }
+@keyframes cricut-loupe-two { 0%,100% { transform: translate(0,0) scale(.9); } 50% { transform: translate(-58%,-26%) scale(1.1); } }
+@keyframes cricut-loupe-three { 0%,100% { transform: translate(0,0) scale(.85); } 50% { transform: translate(8%,-58%) scale(1.06); } }
+@keyframes cricut-scan { 0%,100% { top: 8%; opacity: .35; } 50% { top: 91%; opacity: 1; } }
+@keyframes cricut-tile-fill { from { height: 22%; } to { height: 76%; } }
+@keyframes cricut-tile-arrive { from { opacity: 0; transform: translateY(7px) scale(.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes cricut-check-in { from { opacity: 0; transform: scale(.25) rotate(-18deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes cricut-result-in { from { opacity: 0; transform: scale(.88); filter: blur(8px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+@keyframes cricut-star-drift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-42px, 30px, 0); } }
+@keyframes cricut-aurora-spin { from { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.12); } to { transform: rotate(360deg) scale(1); } }
+@keyframes cricut-activation-in { from { opacity: 0; transform: translateY(24px) scale(.88); filter: blur(10px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+@keyframes cricut-activation-check { from { opacity: 0; transform: scale(.18) rotate(-32deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes cricut-activation-ring { from { opacity: .9; transform: scale(.5); } to { opacity: 0; transform: scale(1.24); } }
+@keyframes cricut-spark-pop { 0%, 100% { opacity: .28; transform: scale(.72) rotate(0deg); } 48% { opacity: 1; transform: scale(1.2) rotate(17deg); } }
+
+
+/* ========================================================= */
 /* MOBILE */
 /* ========================================================= */
 
@@ -3035,6 +3278,47 @@ textarea::placeholder {
         text-align: left;
         font: inherit;
         font-size: 13px;
+    }
+
+
+    .mobile-cricut-entry {
+        display: block;
+        width: 100%;
+        margin: -4px 0 12px;
+        font-size: 13px;
+    }
+
+
+    .cricut-generation {
+        width: calc(100% - 18px);
+        margin: 13px auto 24px;
+        padding: 14px;
+        border-radius: 20px;
+    }
+
+
+    .cricut-preview-frame {
+        width: min(100%, 310px);
+        aspect-ratio: 210 / 297;
+        border-radius: 15px;
+    }
+
+
+    .cricut-sticker-grid {
+        grid-template-columns: repeat(auto-fill, minmax(27px, 1fr));
+        gap: 5px;
+    }
+
+
+    .cricut-sticker-tile {
+        min-height: 31px;
+        border-radius: 8px;
+    }
+
+
+    .cricut-result-gallery {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 7px;
     }
 
 

@@ -301,6 +301,96 @@
           "created_at": "2026-08-20T15:50:48.969549+00:00"
         }
       ]
+    },
+    {
+      "id": "8a7b53562a024829b4bb79ec0ec4eeb4",
+      "title": "genere une image d'un tableau de thales",
+      "created_at": "2026-08-20T17:15:03.244655+00:00",
+      "updated_at": "2026-08-20T17:17:48.379800+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "genere une image d'un tableau de thales",
+          "created_at": "2026-08-20T17:15:03.244655+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T17:16:12.768496+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1540046516511711243/1540046806035992618/image_chatgpt_4d04c783.png?ex=6a8887db&is=6a87365b&hm=69d8421f82a1cf77d21680bde9e545739269f71e46092186490d8d70e61d9368&"
+        },
+        {
+          "role": "user",
+          "content": "c'est bien",
+          "created_at": "2026-08-20T17:17:22.849812+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Merci 😄 Content que ça te plaise !",
+          "created_at": "2026-08-20T17:17:48.379800+00:00"
+        }
+      ]
+    },
+    {
+      "id": "c04c6f59e8b04dd7a605632608104ab5",
+      "title": "genere une planche de stikers format a4 de 2 stikers sur le theme du codeage web",
+      "created_at": "2026-08-20T19:53:43.573695+00:00",
+      "updated_at": "2026-08-20T19:56:40.226865+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "genere une planche de stikers format a4 de 2 stikers sur le theme du codeage web",
+          "created_at": "2026-08-20T19:53:43.573695+00:00"
+        },
+        {
+          "role": "user",
+          "content": "genere une image d' une planche de stikers format a4 de 2 stikers sur le theme du codeage web",
+          "created_at": "2026-08-20T19:54:34.859764+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Image générée",
+          "created_at": "2026-08-20T19:56:40.226865+00:00",
+          "image_url": "https://cdn.discordapp.com/attachments/1540086447246413965/1540087185988911165/image_chatgpt_c932fccd.png?ex=6a88ad76&is=6a875bf6&hm=362b088409e9b8548d712ba62b5cde91306333766ccf7f92903e4d3153f8901f&"
+        }
+      ]
+    },
+    {
+      "id": "cricut-4b9731bb4f82",
+      "title": "✦ Adaptation Cricut : image_chatgpt_c932fccd.png",
+      "created_at": "2026-08-20T20:14:53.432313+00:00",
+      "updated_at": "2026-08-20T20:20:35.405909+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "✦ Adaptation Cricut : image_chatgpt_c932fccd.png",
+          "created_at": "2026-08-20T20:14:53.432313+00:00"
+        },
+        {
+          "role": "assistant",
+          "content": "Stickers Cricut terminés · 2 image(s) prête(s) à télécharger.",
+          "created_at": "2026-08-20T20:20:35.405909+00:00",
+          "cricut_images": [
+            "https://cdn.discordapp.com/attachments/1540091768773550080/1540092572003729458/sticker_01_7cfc3f11.png?ex=6a88b27a&is=6a8760fa&hm=9649af3bf25fc4f75e5b4cd4bdfa8452cbd34028523893b8bf4178062bb8043f&",
+            "https://cdn.discordapp.com/attachments/1540091768773550080/1540093195583488110/sticker_02_96cdf680.png?ex=6a88b30f&is=6a87618f&hm=070c49d8dbb41c76581cb3a10982263647a40c0b4cf0a0c4375358ca409c1342&"
+          ]
+        }
+      ]
+    }
+  ],
+  "natha": [
+    {
+      "id": "cricut-40600c095c1f",
+      "title": "✦ Adaptation Cricut : image_chatgpt_c932fccd.png",
+      "created_at": "2026-08-20T20:24:58.866323+00:00",
+      "updated_at": "2026-08-20T20:24:58.866323+00:00",
+      "messages": [
+        {
+          "role": "user",
+          "content": "✦ Adaptation Cricut : image_chatgpt_c932fccd.png",
+          "created_at": "2026-08-20T20:24:58.866323+00:00"
+        }
+      ]
     }
   ]
 }

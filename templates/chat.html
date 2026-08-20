@@ -11,7 +11,7 @@
     >
 </head>
 
-<body class="chat-page">
+<body class="chat-page" data-account-key="{{ username }}">
 
 <div class="app">
 
@@ -32,6 +32,16 @@
         >
             ＋ Nouvelle discussion
         </button>
+
+        {% if cricut_enabled %}
+        <button
+            class="cricut-entry"
+            type="button"
+            onclick="openCricutUploader()"
+        >
+            ✦ Adapter des stickers
+        </button>
+        {% endif %}
 
         <div class="history">
 
@@ -177,6 +187,13 @@
                         multiple
                     >
 
+                    <input
+                        id="cricutImageInput"
+                        class="reference-images-input"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                    >
+
                     <textarea
                         id="messageInput"
                         rows="1"
@@ -228,6 +245,9 @@
                 <button type="button" onclick="closeMobileHistory()" aria-label="Fermer">×</button>
             </div>
             <button type="button" class="mobile-history-new" onclick="newChat()">＋ Nouvelle discussion</button>
+            {% if cricut_enabled %}
+            <button type="button" class="mobile-cricut-entry" onclick="openCricutUploader()">✦ Adapter des stickers</button>
+            {% endif %}
             <div class="mobile-history-list" id="mobileHistoryList"></div>
             <a class="mobile-history-settings" href="{{ url_for('settings') }}">⚙ Paramètres</a>
         </aside>
@@ -265,6 +285,9 @@ const mobileHistoryList =
 
 const referenceImagesInput =
     document.getElementById("referenceImages");
+
+const cricutImageInput =
+    document.getElementById("cricutImageInput");
 
 const referencePreview =
     document.getElementById("referencePreview");
@@ -633,6 +656,21 @@ async function startDiscordTurn(question, referenceImages = []) {
             throw new Error(payload.error || "Connexion Discord impossible.");
         }
 
+        if (payload.cricut_activated) {
+            finishDiscordTurn();
+            hideThinking();
+            removeImageGeneration();
+            messages.innerHTML = "";
+            welcome.style.display = "none";
+            showCricutActivation(payload.message || "Compte Cricut activé.");
+            loadConversations();
+
+            // Recharge le modèle de page pour faire apparaître le bouton
+            // Cricut réservé au compte venant d'être activé.
+            setTimeout(() => window.location.reload(), 2200);
+            return;
+        }
+
 
         listenForDiscordEvents(payload.job_id);
         loadConversations();
@@ -781,6 +819,30 @@ function addAssistantMessage(text) {
 
     message.appendChild(bubble);
     messages.appendChild(message);
+    scrollToBottom();
+}
+
+
+function showCricutActivation(text) {
+
+    const activation = document.createElement("section");
+    activation.className = "cricut-activation";
+    activation.setAttribute("role", "status");
+    activation.innerHTML = `
+        <span class="cricut-activation-spark spark-a">✦</span>
+        <span class="cricut-activation-spark spark-b">✧</span>
+        <span class="cricut-activation-spark spark-c">✦</span>
+        <span class="cricut-activation-spark spark-d">✧</span>
+        <div class="cricut-activation-seal"><span>✓</span></div>
+        <div class="cricut-activation-copy">
+            <p>MODE CRICUT</p>
+            <strong>Compte activé</strong>
+            <small></small>
+        </div>
+    `;
+
+    activation.querySelector("small").textContent = text;
+    messages.appendChild(activation);
     scrollToBottom();
 }
 
@@ -973,6 +1035,13 @@ async function loadConversations() {
 
             shouldRestoreLastConversation = false;
 
+            // Pendant une décomposition Cricut, la carte de suivi doit être
+            // restaurée à la place du simple message « Adaptation Cricut ».
+            // Sans cela, les deux restaurations asynchrones se remplaçaient.
+            if (readCricutRecovery()?.jobId) {
+                return;
+            }
+
             const lastConversation = localStorage.getItem(
                 "nathgpt-last-conversation"
             );
@@ -1028,6 +1097,11 @@ async function openConversation(conversationId) {
                 addSavedUserMessage(item.content);
             }
 
+            else if (Array.isArray(item.cricut_images)) {
+                addAssistantMessage(item.content || "Stickers Cricut terminés.");
+                addSavedCricutResult(item.cricut_images);
+            }
+
             else if (item.image_url) {
                 addSavedImage(item.image_url);
             }
@@ -1076,6 +1150,24 @@ function addSavedImage(imageUrl) {
     message.appendChild(image);
     appendGeneratedImageActions(message, imageUrl);
     messages.appendChild(message);
+}
+
+
+function addSavedCricutResult(images) {
+
+    const card = document.createElement("section");
+    card.className = "cricut-generation cricut-saved-generation is-complete";
+
+    const heading = document.createElement("div");
+    heading.className = "cricut-heading";
+    heading.innerHTML = "<span class=\"cricut-heading-orb\">✦</span><div><strong>Stickers Cricut</strong><small>Résultat enregistré</small></div>";
+    card.appendChild(heading);
+
+    const results = document.createElement("div");
+    results.className = "cricut-results";
+    appendCricutResultGallery(results, images);
+    card.appendChild(results);
+    messages.appendChild(card);
 }
 
 
@@ -3821,6 +3913,490 @@ function stopConstellationAnimation() {
 /* REMOVE IMAGE GENERATION */
 /* ========================================================= */
 
+/* ========================================================= */
+/* MODE CRICUT */
+/* ========================================================= */
+
+let cricutState = {
+    jobId: "",
+    total: 0,
+    current: 0,
+    remaining: "",
+    imageUrl: "",
+    status: "",
+    completed: false,
+    images: []
+};
+
+const cricutRecoveryKey = "nathgpt-cricut-job:" + (document.body.dataset.accountKey || "account");
+const cricutDatabaseName = "nathgpt-cricut-recovery";
+const cricutDatabaseStore = "reference-images";
+
+
+function readCricutRecovery() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(cricutRecoveryKey) || "null");
+        return saved && typeof saved === "object" ? saved : null;
+    }
+    catch (_) {
+        return null;
+    }
+}
+
+
+function persistCricutRecovery() {
+    if (!cricutState.jobId) {
+        return;
+    }
+
+    try {
+        localStorage.setItem(cricutRecoveryKey, JSON.stringify({
+            jobId: cricutState.jobId,
+            total: cricutState.total,
+            current: cricutState.current,
+            remaining: cricutState.remaining,
+            status: cricutState.status,
+            completed: cricutState.completed,
+            images: cricutState.images
+        }));
+    }
+    catch (_) {
+        // Le suivi continue même si le navigateur refuse le stockage local.
+    }
+}
+
+
+function openCricutDatabase() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(cricutDatabaseName, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(cricutDatabaseStore);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+
+async function saveCricutReference(jobId, file) {
+    try {
+        const database = await openCricutDatabase();
+        await new Promise((resolve, reject) => {
+            const transaction = database.transaction(cricutDatabaseStore, "readwrite");
+            transaction.objectStore(cricutDatabaseStore).put(file, jobId);
+            transaction.oncomplete = resolve;
+            transaction.onerror = () => reject(transaction.error);
+        });
+        database.close();
+    }
+    catch (_) {
+        // Safari peut limiter IndexedDB en navigation privée : ce n'est pas bloquant.
+    }
+}
+
+
+async function getCricutReference(jobId) {
+    try {
+        const database = await openCricutDatabase();
+        const file = await new Promise((resolve, reject) => {
+            const request = database.transaction(cricutDatabaseStore, "readonly")
+                .objectStore(cricutDatabaseStore).get(jobId);
+            request.onsuccess = () => resolve(request.result || null);
+            request.onerror = () => reject(request.error);
+        });
+        database.close();
+        return file;
+    }
+    catch (_) {
+        return null;
+    }
+}
+
+
+async function removeSavedCricutReference(jobId) {
+    if (!jobId) {
+        return;
+    }
+    try {
+        const database = await openCricutDatabase();
+        await new Promise((resolve, reject) => {
+            const transaction = database.transaction(cricutDatabaseStore, "readwrite");
+            transaction.objectStore(cricutDatabaseStore).delete(jobId);
+            transaction.oncomplete = resolve;
+            transaction.onerror = () => reject(transaction.error);
+        });
+        database.close();
+    }
+    catch (_) {
+        // Rien à faire : l'ancien aperçu sera simplement remplacé plus tard.
+    }
+}
+
+
+function openCricutUploader() {
+
+    if (isDiscordTurnActive) {
+        return;
+    }
+
+    closeMobileHistory();
+    cricutImageInput?.click();
+}
+
+
+cricutImageInput?.addEventListener("change", function () {
+
+    const file = this.files && this.files[0];
+    this.value = "";
+
+    if (file) {
+        startCricutJob(file);
+    }
+});
+
+
+async function startCricutJob(file) {
+
+    if (isDiscordTurnActive) {
+        return;
+    }
+
+    isDiscordTurnActive = true;
+    currentTurnIsImage = false;
+    closeMobileHistory();
+    hideThinking();
+    removeImageGeneration();
+    welcome.style.display = "none";
+    const previousRecovery = readCricutRecovery();
+    localStorage.removeItem(cricutRecoveryKey);
+    removeSavedCricutReference(previousRecovery?.jobId);
+    showCricutGeneration(file);
+
+    try {
+        const formData = new FormData();
+        formData.append("reference_images", file, file.name);
+
+        const response = await fetch("/api/cricut/start", {
+            method: "POST",
+            body: formData
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+            throw new Error(payload.error || "Impossible de démarrer le mode Cricut.");
+        }
+
+        cricutState.jobId = payload.job_id;
+        persistCricutRecovery();
+        saveCricutReference(payload.job_id, file);
+        if (payload.conversation_id) {
+            currentConversationId = payload.conversation_id;
+            rememberActiveConversation();
+            loadConversations();
+        }
+        listenForCricutEvents(payload.job_id);
+    }
+    catch (error) {
+        finishDiscordTurn();
+        removeCricutGeneration();
+        addAssistantMessage(error.message || "Impossible de démarrer le mode Cricut.");
+    }
+}
+
+
+function showCricutGeneration(file, savedState = null) {
+
+    removeCricutGeneration();
+
+    cricutState = {
+        jobId: savedState?.jobId || "",
+        total: Number(savedState?.total) || 0,
+        current: Number(savedState?.current) || 0,
+        remaining: savedState?.remaining || "",
+        imageUrl: file ? URL.createObjectURL(file) : "",
+        status: savedState?.status || "",
+        completed: Boolean(savedState?.completed),
+        images: Array.isArray(savedState?.images) ? savedState.images : []
+    };
+
+    const card = document.createElement("section");
+    card.id = "cricutGeneration";
+    card.className = "cricut-generation";
+    card.innerHTML = `
+        <div class="cricut-heading">
+            <span class="cricut-heading-orb">✦</span>
+            <div><strong>Adaptation Cricut</strong><small id="cricutStatus">Envoi de l'image à l'atelier…</small></div>
+        </div>
+        <div class="cricut-preview-frame">
+            <img class="cricut-source-image" alt="Image à adapter en stickers">
+            <span class="cricut-loupe loupe-one"></span>
+            <span class="cricut-loupe loupe-two"></span>
+            <span class="cricut-loupe loupe-three"></span>
+            <span class="cricut-scanline"></span>
+        </div>
+        <div class="cricut-progress-copy" id="cricutProgressCopy">Les contours sont analysés…</div>
+        <div class="cricut-sticker-grid" id="cricutStickerGrid" aria-live="polite"></div>
+        <div class="cricut-results" id="cricutResults"></div>
+    `;
+
+    const preview = card.querySelector(".cricut-source-image");
+    if (cricutState.imageUrl) {
+        preview.src = cricutState.imageUrl;
+        preview.onload = () => URL.revokeObjectURL(cricutState.imageUrl);
+    }
+    else {
+        preview.alt = "Image de référence restaurée";
+        preview.classList.add("is-unavailable");
+    }
+    messages.appendChild(card);
+    if (cricutState.status) {
+        updateCricutStatus(cricutState.status);
+    }
+    if (cricutState.total) {
+        updateCricutProgress(cricutState);
+    }
+    scrollToBottom();
+}
+
+
+function updateCricutStatus(message) {
+    const status = document.getElementById("cricutStatus");
+    const copy = document.getElementById("cricutProgressCopy");
+
+    if (status && message) {
+        status.textContent = message;
+    }
+    if (copy && message) {
+        copy.textContent = message;
+    }
+    cricutState.status = message || cricutState.status;
+    persistCricutRecovery();
+    scrollToBottom();
+}
+
+
+function updateCricutProgress(payload) {
+
+    cricutState.total = Math.max(cricutState.total, Number(payload.total) || 0);
+    cricutState.current = Math.min(
+        cricutState.total,
+        Math.max(cricutState.current, Number(payload.current) || 0)
+    );
+    cricutState.remaining = payload.remaining || cricutState.remaining;
+
+    const total = cricutState.total;
+    const current = cricutState.current;
+    const remaining = cricutState.remaining;
+    const status = document.getElementById("cricutStatus");
+    const copy = document.getElementById("cricutProgressCopy");
+    const grid = document.getElementById("cricutStickerGrid");
+
+    if (status) {
+        status.textContent = `${total} stickers à générer · ${current}/${total}`;
+    }
+    if (copy) {
+        copy.textContent = remaining
+            ? `Temps restant estimé : ${remaining} · Sticker ${current}/${total}`
+            : `Création des stickers · ${current}/${total}`;
+    }
+
+    if (!grid || !total) {
+        return;
+    }
+
+    const existingTotal = Number(grid.dataset.total || 0);
+    if (existingTotal !== total) {
+        grid.innerHTML = "";
+        grid.dataset.total = String(total);
+        const fragment = document.createDocumentFragment();
+
+        for (let index = 1; index <= total; index += 1) {
+            const tile = document.createElement("span");
+            tile.className = "cricut-sticker-tile";
+            tile.dataset.index = String(index);
+            tile.setAttribute("aria-label", `Sticker ${index} sur ${total}`);
+            tile.textContent = String(index);
+            fragment.appendChild(tile);
+        }
+        grid.appendChild(fragment);
+    }
+
+    grid.querySelectorAll(".cricut-sticker-tile").forEach((tile) => {
+        const index = Number(tile.dataset.index);
+        tile.classList.toggle("is-complete", index <= current);
+        tile.classList.toggle("is-active", current < total && index === current + 1);
+    });
+    persistCricutRecovery();
+    scrollToBottom();
+}
+
+
+function listenForCricutEvents(jobId) {
+
+    if (activeDiscordStream) {
+        activeDiscordStream.close();
+    }
+
+    const stream = new EventSource(
+        "/api/discord/jobs/" + encodeURIComponent(jobId) + "/events"
+    );
+    activeDiscordStream = stream;
+
+    stream.onmessage = function (event) {
+        const payload = JSON.parse(event.data);
+
+        if (payload.type === "cricut_status") {
+            updateCricutStatus(payload.message || "Atelier Cricut en cours…");
+            return;
+        }
+
+        if (payload.type === "cricut_plan" || payload.type === "cricut_progress") {
+            updateCricutProgress(payload);
+            return;
+        }
+
+        stream.close();
+        if (activeDiscordStream === stream) {
+            activeDiscordStream = null;
+        }
+        finishDiscordTurn();
+
+        if (payload.type === "cricut_complete") {
+            completeCricutGeneration(payload.images || []);
+        }
+        else {
+            updateCricutStatus(payload.message || "La génération Cricut a été interrompue.");
+        }
+    };
+
+    stream.onerror = function () {
+        if (stream.readyState === EventSource.CLOSED && activeDiscordStream === stream) {
+            activeDiscordStream = null;
+            finishDiscordTurn();
+            updateCricutStatus("La connexion au bot Discord a été interrompue.");
+        }
+    };
+}
+
+
+function completeCricutGeneration(images) {
+
+    const card = document.getElementById("cricutGeneration");
+    const results = document.getElementById("cricutResults");
+    const status = document.getElementById("cricutStatus");
+    const copy = document.getElementById("cricutProgressCopy");
+
+    cricutState.completed = true;
+    cricutState.images = Array.isArray(images) ? images : [];
+    cricutState.current = Math.max(cricutState.current, cricutState.total);
+    cricutState.status = "Stickers prêts";
+    persistCricutRecovery();
+
+    card?.classList.add("is-complete");
+    if (status) {
+        status.textContent = "Stickers prêts";
+    }
+    if (copy) {
+        copy.textContent = `${images.length} image${images.length > 1 ? "s" : ""} prête${images.length > 1 ? "s" : ""} à télécharger`;
+    }
+
+    if (!results) {
+        return;
+    }
+
+    appendCricutResultGallery(results, images);
+    scrollToBottom();
+}
+
+
+function appendCricutResultGallery(results, images) {
+
+    results.innerHTML = "";
+
+    if (!images.length) {
+        const note = document.createElement("p");
+        note.className = "cricut-empty-result";
+        note.textContent = "Le bot a terminé, mais aucune image n'a été reçue.";
+        results.appendChild(note);
+        return;
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "cricut-download-all";
+    button.textContent = "↓ Télécharger tous les stickers";
+    button.addEventListener("click", () => downloadAllCricutImages(images));
+    results.appendChild(button);
+
+    const gallery = document.createElement("div");
+    gallery.className = "cricut-result-gallery";
+    images.forEach((url, index) => {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `nathgpt-sticker-${index + 1}.png`;
+        link.target = "_blank";
+        link.rel = "noopener";
+
+        const image = document.createElement("img");
+        image.src = url;
+        image.alt = `Sticker généré ${index + 1}`;
+        image.loading = "lazy";
+        link.appendChild(image);
+        gallery.appendChild(link);
+    });
+    results.appendChild(gallery);
+}
+
+
+async function restoreCricutGeneration() {
+
+    const savedState = readCricutRecovery();
+    if (!savedState?.jobId || isDiscordTurnActive) {
+        return;
+    }
+
+    const sourceImage = await getCricutReference(savedState.jobId);
+    welcome.style.display = "none";
+    showCricutGeneration(sourceImage, savedState);
+
+    if (savedState.completed) {
+        completeCricutGeneration(savedState.images || []);
+        return;
+    }
+
+    isDiscordTurnActive = true;
+    updateCricutStatus(
+        savedState.status || "Reconnexion à l'atelier Cricut en cours…"
+    );
+    listenForCricutEvents(savedState.jobId);
+}
+
+
+function downloadAllCricutImages(images) {
+
+    images.forEach((url, index) => {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `nathgpt-sticker-${index + 1}.png`;
+        link.target = "_blank";
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    });
+}
+
+
+function removeCricutGeneration() {
+    const card = document.getElementById("cricutGeneration");
+    if (card) {
+        card.remove();
+    }
+}
+
+
+/* ========================================================= */
+/* REMOVE IMAGE GENERATION */
+/* ========================================================= */
+
 function removeImageGeneration() {
 
     stopConstellationAnimation();
@@ -3905,6 +4481,7 @@ function newChat() {
     rememberActiveConversation();
 
     removeImageGeneration();
+    removeCricutGeneration();
 
 
     messages.innerHTML =
@@ -3942,6 +4519,7 @@ function newChat() {
 input.focus();
 
 loadConversations();
+restoreCricutGeneration();
 
 document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {

@@ -4,9 +4,31 @@
     "created_at": "2026-08-20T15:43:43.341288+00:00",
     "last_login_at": "2026-08-20T15:43:43.341288+00:00",
     "last_ip": "127.0.0.1",
+    "known_ips": [],
+    "last_seen_at": "2026-08-20T20:21:52.878953+00:00",
+    "cricut_enabled": true,
+    "cricut_enabled_at": "2026-08-20T19:43:55.964342+00:00"
+  },
+  "nathana": {
+    "password_hash": "scrypt:32768:8:1$Xul7QyXdGvRJb2V4$c9f6e260e970e9d5c7ede33a9d704f31671317cb5fdc3174f994912969bbd4cf2469399d5d5bd6e94fc3c010aff3a1e464423b85c8a41ee11fc54d58916ebff3",
+    "created_at": "2026-08-20T20:22:08.825848+00:00",
+    "last_login_at": "2026-08-20T20:22:08.825848+00:00",
+    "last_ip": "127.0.0.1",
+    "known_ips": [],
+    "last_seen_at": "2026-08-20T20:23:13.347926+00:00",
+    "cricut_enabled": true,
+    "cricut_enabled_at": "2026-08-20T20:23:21.375996+00:00"
+  },
+  "natha": {
+    "password_hash": "scrypt:32768:8:1$eFaC3OnXigNgklis$331e04d56eb30e481ae3c0861f13e95fb490dfb8195dcb152b5dfc245e55891836e0b8303455b1c936509b941ac3b48039ac75eb177c864ac95e829ed6b50457",
+    "created_at": "2026-08-20T20:24:04.075775+00:00",
+    "last_login_at": "2026-08-20T20:24:04.075775+00:00",
+    "last_ip": "127.0.0.1",
     "known_ips": [
       "127.0.0.1"
     ],
-    "last_seen_at": "2026-08-20T15:50:24.620655+00:00"
+    "last_seen_at": "2026-08-20T20:25:07.254139+00:00",
+    "cricut_enabled": true,
+    "cricut_enabled_at": "2026-08-20T20:24:43.469199+00:00"
   }
 }
