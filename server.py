@@ -28,6 +28,7 @@ import os
 import re
 import secrets
 import threading
+import unicodedata
 
 from discord_bridge import DiscordBridge
 
@@ -366,6 +367,29 @@ def get_conversation(username, conversation_id):
             return item
 
     return None
+
+
+def is_image_generation_request(question, has_reference_images=False):
+    """DÃ©termine cÃ´tÃ© serveur si le rÃ©sultat attendu est une image."""
+    if has_reference_images:
+        return True
+
+    text = unicodedata.normalize("NFD", str(question or "").casefold())
+    text = "".join(character for character in text if not unicodedata.combining(character))
+
+    if text.startswith("modify:") or text == "png:":
+        return True
+
+    keywords = (
+        "genere une image", "genere l'image", "genere image",
+        "cree une image", "creer une image", "cree l'image", "creer l'image",
+        "fais une image", "fait une image", "dessine", "genere une photo",
+        "cree une photo", "creer une photo", "genere une illustration",
+        "cree une illustration", "creer une illustration", "image de", "photo de",
+        "illustration de", "generate an image", "create an image",
+        "generate a picture", "create a picture", "draw me",
+    )
+    return any(keyword in text for keyword in keywords)
 
 
 def get_reference_images():
@@ -1759,7 +1783,11 @@ def discord_turn():
             username,
             conversation_id,
             question,
-            reference_images
+            reference_images,
+            expects_image=is_image_generation_request(
+                question,
+                bool(reference_images)
+            ),
         )
     except RuntimeError as error:
         save_conversation_message(

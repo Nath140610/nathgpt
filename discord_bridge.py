@@ -98,7 +98,14 @@ class DiscordBridge:
         """Enregistre le résultat final, même sans client web connecté."""
         self._result_handler = handler
 
-    def start_turn(self, username, conversation_id, question, reference_images=None):
+    def start_turn(
+        self,
+        username,
+        conversation_id,
+        question,
+        reference_images=None,
+        expects_image=False,
+    ):
         """Envoie une question et retourne immédiatement l'identifiant de son flux."""
         if not self.enabled:
             raise RuntimeError("Discord n'est pas configuré : DISCORD_TOKEN est manquant.")
@@ -124,6 +131,7 @@ class DiscordBridge:
                 "username": username,
                 "conversation_id": conversation_id,
                 "conversation_key": f"{username.casefold()}:{conversation_id}",
+                "expects_image": bool(expects_image),
                 "text_messages": {},
                 "text_message_order": [],
                 "text_result_timer": None,
@@ -399,6 +407,18 @@ class DiscordBridge:
         content = (message.content or "").strip()
         if not content:
             return
+
+        # Certains bots annoncent "Image gÃ©nÃ©rÃ©e" avant d'ajouter le vrai
+        # fichier dans un second message. Pour une demande d'image, cette
+        # annonce reste une Ã©tape d'attente : seul le fichier/embedd image
+        # termine la gÃ©nÃ©ration cÃ´tÃ© site.
+        if job.get("expects_image") and self._is_image_completion_notice(content):
+            self._publish(
+                job_id,
+                {"type": "status", "message": "Image prÃªte, rÃ©ception du fichier..."},
+            )
+            return
+
         if self._is_progress(content):
             self._publish(job_id, {"type": "status", "message": content})
             return
@@ -453,7 +473,12 @@ class DiscordBridge:
     def _image_url_from(self, message):
         for attachment in message.attachments:
             content_type = attachment.content_type or ""
-            if content_type.startswith("image/") or re.search(r"\.(png|jpe?g|webp|gif)(?:\?|$)", attachment.url, re.I):
+            filename = getattr(attachment, "filename", "") or ""
+            if (
+                content_type.startswith("image/") or
+                re.search(r"\.(png|jpe?g|webp|gif|avif)(?:\?|$)", filename, re.I) or
+                re.search(r"\.(png|jpe?g|webp|gif|avif)(?:\?|$)", attachment.url, re.I)
+            ):
                 return attachment.url
 
         for embed in message.embeds:
@@ -461,9 +486,23 @@ class DiscordBridge:
                 return embed.image.url
             if embed.thumbnail and embed.thumbnail.url:
                 return embed.thumbnail.url
+            if getattr(embed, "type", "") == "image" and getattr(embed, "url", None):
+                return embed.url
 
-        match = re.search(r"https?://\S+\.(?:png|jpe?g|webp|gif)(?:\?\S*)?", message.content or "", re.I)
+        match = re.search(r"https?://\S+\.(?:png|jpe?g|webp|gif|avif)(?:\?\S*)?", message.content or "", re.I)
         return match.group(0) if match else None
+
+    @staticmethod
+    def _is_image_completion_notice(content):
+        text = " ".join((content or "").casefold().split())
+        text = text.replace("**", "").replace("__", "")
+        return bool(re.search(
+            r"(?:image\s+(?:g[ée]n[ée]r[ée]e?|generee|pr[ée]te|prete|"
+            r"termin[ée]e?|finie)|r[ée]ponds?\s+[àa]\s+cette\s+image|"
+            r"(?:modify:|png:)\s*(?:ton|votre|le|la)?)",
+            text,
+            re.I,
+        ))
 
     @staticmethod
     def _is_progress(content):
