@@ -1,0 +1,47 @@
+NathGPT FINAL - Correctif pièces jointes / WEB_AI
+=================================================
+
+BUG CORRIGE
+-----------
+Une image pouvait être visible dans Discord sous un message d'un bot,
+webhook ou application (par exemple WEB_AI), mais NathGPT ne la recevait pas.
+
+Discord peut placer cette image dans un EMBED au lieu de message.attachments.
+L'ancienne version envoyait donc uniquement le texte à ChatGPT, qui répondait :
+"Envoie-moi l'image..."
+
+Cette version corrige ce comportement.
+
+NOUVEAU COMPORTEMENT
+--------------------
+- Pièces jointes Discord classiques : prises en charge.
+- Images dans les embeds des bots/webhooks/apps : prises en charge.
+- Image de thumbnail d'un embed : prise en charge.
+- Doublons attachment + embed : évités.
+- Vérification du vrai contenu image avec Pillow si nécessaire.
+- Limites de taille conservées.
+- Exemple "rend ce logo plus beau" + image :
+  NathGPT détecte maintenant automatiquement une MODIFICATION D'IMAGE.
+- Le pipeline image est utilisé : l'image est téléversée dans ChatGPT,
+  puis NathGPT attend et renvoie la nouvelle image générée.
+- Mémoire par salon, retry:, annulation automatique, statut dynamique,
+  modify:, png: et catégorie Discord restent actifs.
+
+MISE A JOUR
+-----------
+1. Extrais le ZIP COMPLET sur ton Bureau.
+2. Ouvre le dossier NathGPT_FINAL_ATTACHMENTS_FIX.
+3. Double-clique sur METTRE_A_JOUR_NATHGPT.bat.
+4. Attends que la fenêtre affiche le statut final du service.
+5. Ton .env, ton token Discord, ta mémoire et ta session Chromium restent conservés.
+
+TEST CONSEILLE
+--------------
+Envoie via WEB_AI :
+  rend ce logo plus beau
+avec une image affichée sous le message.
+
+Dans les logs NathGPT, tu dois voir quelque chose comme :
+  Pieces : 1 | Images embeds : 1
+
+Puis NathGPT doit passer en génération d'image et renvoyer l'image modifiée.

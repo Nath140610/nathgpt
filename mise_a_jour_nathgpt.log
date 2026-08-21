@@ -1,0 +1,52 @@
+﻿**********************
+Début de la transcription Windows PowerShell
+Heure de début : 20260821103829
+Nom d'utilisateur : PC_NATH\natha
+Utilisateur runAs :  PC_NATH\natha
+Nom de la configuration : 
+Ordinateur : PC_NATH (Microsoft Windows NT 10.0.26200.0)
+Application hôte : powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File C:\Users\natha\Desktop\NathGPT_FINAL_RAM_RESTART\update_nathgpt.ps1
+ID de processus : 20756
+PSVersion: 5.1.26100.9168
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9168
+BuildVersion: 10.0.26100.9168
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+NathGPT - mise a jour Oracle
+VM : ubuntu@158.178.213.168
+
+[1/6] Test de la connexion SSH...
+connexion_ok
+
+[2/6] Envoi du nouveau code...
+nathgpt_v11_oracle.py                                                                 100%  134KB   2.8MB/s   00:00
+
+[3/6] Verification de la syntaxe Python sur la VM...
+
+
+[4/6] Sauvegarde de l'ancienne version et installation...
+
+
+[5/6] Redemarrage de NathGPT...
+
+
+[6/6] Verification du service...
+Aug 21 08:38:32 instance-20260819-1611 python[57414]:   /code ta demande
+Aug 21 08:38:32 instance-20260819-1611 python[57414]:   /ask ta question
+Aug 21 08:38:32 instance-20260819-1611 python[57414]:   retry:
+Aug 21 08:38:32 instance-20260819-1611 python[57414]:   modify: ... en reponse a une image
+Aug 21 08:38:32 instance-20260819-1611 python[57414]:   png: en reponse a une image
+Aug 21 08:38:32 instance-20260819-1611 python[57414]:   :decomp_cricut avec une image jointe
+
+Mise a jour terminee.
+Le .env, le token Discord et le profil Chromium ont ete conserves.
+Ancienne version sauvegardee dans :
+/home/ubuntu/NathGPT_V11_Oracle/nathgpt_v11_oracle.py.backup
+**********************
+Fin de la transcription Windows PowerShell
+Heure de fin : 20260821103835
+**********************

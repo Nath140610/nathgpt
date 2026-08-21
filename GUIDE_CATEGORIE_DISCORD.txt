@@ -1,0 +1,41 @@
+NathGPT FINAL - Tous les salons d'une catégorie Discord
+=====================================================
+
+Catégorie écoutée :
+1539922989200576512
+
+Fonctionnement :
+- NathGPT ne dépend plus d'un seul DISCORD_CHANNEL_ID.
+- Il répond dans TOUS les salons texte placés dans la catégorie ci-dessus.
+- Il ignore les salons situés hors de cette catégorie.
+- Les threads dont le salon parent est dans cette catégorie sont aussi acceptés.
+- Chaque demande continue d'ouvrir sa propre conversation ChatGPT.
+- La file d'attente reste globale pour éviter que plusieurs générations pilotent
+  Chromium en même temps.
+- modify: ... et png: continuent à fonctionner en réponse aux images de NathGPT.
+- Le correctif de détection des vraies images finales est conservé.
+
+MISE A JOUR AUTOMATIQUE
+-----------------------
+1. Extrais le ZIP COMPLET sur ton Bureau.
+2. Ouvre le dossier NathGPT_FINAL_CATEGORY.
+3. Double-clique sur METTRE_A_JOUR_NATHGPT.bat.
+4. Le BAT envoie le nouveau fichier Python sur Oracle.
+5. Il garde ton .env, ton token Discord et ta session Chromium.
+6. Il redémarre NathGPT automatiquement et affiche son statut.
+
+IMPORTANT
+---------
+Tu n'as PAS besoin de modifier ton ancien DISCORD_CHANNEL_ID dans le .env.
+La nouvelle version utilise par défaut la catégorie :
+1539922989200576512
+
+Optionnel :
+si un jour tu veux changer de catégorie, ajoute/modifie dans .env :
+DISCORD_CATEGORY_ID=ID_DE_LA_NOUVELLE_CATEGORIE
+
+VM :
+ubuntu@158.178.213.168
+
+Clé SSH utilisée par le BAT :
+C:\Users\natha\Downloads\ssh-key-2026-08-19 (1).key

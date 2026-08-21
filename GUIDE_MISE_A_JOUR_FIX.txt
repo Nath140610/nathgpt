@@ -1,0 +1,34 @@
+NathGPT FINAL Oracle - Mise a jour FIXEE
+==========================================
+
+Cette version corrige le BAT qui pouvait se fermer/crasher.
+
+UTILISATION
+-----------
+1. Extrais le ZIP COMPLET sur ton Bureau.
+2. Ouvre le dossier NathGPT_FINAL_Oracle_FIXED.
+3. Double-clique sur METTRE_A_JOUR_NATHGPT.bat.
+4. Ne deplace pas le BAT seul : il utilise update_nathgpt.ps1 et
+   nathgpt_v11_oracle.py qui doivent rester dans le meme dossier.
+5. La fenetre reste ouverte meme si une erreur arrive.
+
+Le BAT :
+- verifie la cle SSH ;
+- teste la connexion Oracle ;
+- envoie le nouveau bot ;
+- verifie la syntaxe Python AVANT de remplacer l'ancien ;
+- sauvegarde l'ancien fichier en .backup ;
+- redemarre le service nathgpt ;
+- affiche le statut final.
+
+Si ca echoue :
+- la fenetre ne se ferme pas ;
+- regarde mise_a_jour_nathgpt.log dans le meme dossier.
+
+La cle utilisee :
+C:\Users\natha\Downloads\ssh-key-2026-08-19 (1).key
+
+VM :
+ubuntu@158.178.213.168
+
+Le .env et la session ChatGPT Chromium de la VM ne sont pas remplaces.

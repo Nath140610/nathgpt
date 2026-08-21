@@ -1,0 +1,99 @@
+NathGPT FINAL Oracle - Guide de mise a jour
+===============================================
+
+CE QUE CETTE VERSION CHANGE
+---------------------------
+- Plus d'embeds / grandes zones de texte pour les statuts.
+- Pour une demande texte ou code :
+    reflexion en cours
+- Pour une image :
+    generation image en cours image X%
+- Le message de progression disparait quand le resultat final est envoye.
+- Les reponses texte sont envoyees comme messages Discord normaux.
+- Les images sont envoyees comme fichiers/images Discord normaux, sans boutons.
+- Plus de bouton Modifier, Rendre PNG, Telecharger ou Historique.
+- Pour modifier une image :
+    reponds directement au message NathGPT qui contient l'image
+    puis ecris :
+    modify: ton prompt
+- Pour regenerer l'image en PNG sans fond format A4 :
+    reponds directement au message NathGPT qui contient l'image
+    puis ecris :
+    png:
+- La detection des images ne depend plus du bouton "Modifier" de ChatGPT.
+  Cela corrige le cas ou l'image est deja terminee mais le bot restait bloque
+  vers 95 % parce que ce bouton n'etait pas repere.
+- Detection ajoutee pour les images <img> et les rendus <canvas>.
+- Aucun token Discord n'est inclus dans ce ZIP.
+
+MISE A JOUR AUTOMATIQUE
+-----------------------
+1. Extrais le ZIP sur ton Bureau.
+2. Ouvre le dossier NathGPT_FINAL_Oracle.
+3. Double-clique sur :
+      METTRE_A_JOUR_NATHGPT.bat
+4. Attends la fin.
+5. La fenetre doit afficher le statut de nathgpt.service.
+6. Si tu vois :
+      Active: active (running)
+   la mise a jour est terminee.
+
+Le BAT utilise actuellement :
+- VM : ubuntu@158.178.213.168
+- Cle SSH :
+  C:\Users\natha\Downloads\ssh-key-2026-08-19 (1).key
+- Dossier du bot sur Oracle :
+  /home/ubuntu/NathGPT_V11_Oracle
+
+Le BAT ne remplace PAS :
+- /home/ubuntu/NathGPT_V11_Oracle/.env
+- ton token Discord
+- ton ID de salon
+- le profil Chromium / ta session ChatGPT
+- le virtualenv Python
+
+TEST APRES MISE A JOUR
+----------------------
+Dans Discord :
+1. Envoie une question normale.
+   NathGPT doit afficher :
+      reflexion en cours
+
+2. Envoie une demande d'image.
+   NathGPT doit afficher par exemple :
+      generation image en cours image 42%
+
+3. Quand l'image arrive, reponds AU MESSAGE DE L'IMAGE :
+      modify: ajoute une voiture rouge a gauche
+
+4. Pour le PNG :
+      png:
+
+VOIR LES LOGS MANUELLEMENT
+--------------------------
+Depuis PowerShell :
+
+ssh -i "C:\Users\natha\Downloads\ssh-key-2026-08-19 (1).key" ubuntu@158.178.213.168
+
+Puis sur la VM :
+
+journalctl --user -u nathgpt -f
+
+Quitter les logs :
+Ctrl+C
+
+REDEMARRER MANUELLEMENT
+-----------------------
+Depuis PowerShell :
+
+ssh -i "C:\Users\natha\Downloads\ssh-key-2026-08-19 (1).key" ubuntu@158.178.213.168 "systemctl --user restart nathgpt"
+
+REVENIR A L'ANCIEN CODE SI BESOIN
+---------------------------------
+Le BAT cree une sauvegarde :
+/home/ubuntu/NathGPT_V11_Oracle/nathgpt_v11_oracle.py.backup
+
+Pour la restaurer :
+
+cp /home/ubuntu/NathGPT_V11_Oracle/nathgpt_v11_oracle.py.backup /home/ubuntu/NathGPT_V11_Oracle/nathgpt_v11_oracle.py
+systemctl --user restart nathgpt

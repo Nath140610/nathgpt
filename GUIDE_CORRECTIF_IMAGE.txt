@@ -1,0 +1,30 @@
+NathGPT FINAL - Correctif detection image
+===========================================
+
+CORRECTIF PRINCIPAL
+- Le bot ignore maintenant les <canvas> de ChatGPT.
+- L'animation blanche avec les points pendant la generation ne peut plus etre envoyee sur Discord.
+- Le bot attend une vraie balise <img> finale, completement chargee.
+- Les placeholders/loading/spinner sont ignores.
+- La vraie image doit etre suffisamment grande dans le fichier ET a l'ecran.
+- Si le telechargement direct echoue, la capture d'ecran n'est utilisee qu'apres avoir confirme qu'il s'agit d'une vraie image finale.
+- Le fallback de stabilite attend un peu plus longtemps pour eviter de recuperer une transition.
+- La progression Discord reste : generation image en cours image X%
+- Pour modifier : repondre a l'image avec modify: ton prompt
+- Pour PNG : repondre a l'image avec png:
+
+MISE A JOUR
+1. Extrais le ZIP complet sur ton Bureau.
+2. Ouvre le dossier NathGPT_FINAL_IMAGE_FIX.
+3. Double-clique sur METTRE_A_JOUR_NATHGPT.bat.
+4. Laisse la fenetre ouverte jusqu'au statut final.
+5. Le .env, le token Discord et la session Chromium de la VM sont conserves.
+
+En cas d'erreur, le BAT reste ouvert et cree :
+mise_a_jour_nathgpt.log
+
+VM configuree :
+ubuntu@158.178.213.168
+
+Cle SSH configuree :
+C:\Users\natha\Downloads\ssh-key-2026-08-19 (1).key

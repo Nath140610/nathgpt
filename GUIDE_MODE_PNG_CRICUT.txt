@@ -1,0 +1,35 @@
+MODE PNG CRICUT - VERSION FINALE
+================================
+
+Cette version modifie le comportement de la commande `png:`.
+
+NOUVEAU COMPORTEMENT
+--------------------
+Quand quelqu'un répond `png:` à une image générée par NathGPT, le bot envoie maintenant ce prompt à ChatGPT :
+
+Analyse l’image jointe. Si elle contient une planche de stickers (sinon generer en format png sans fond l'image), régénère directement une nouvelle version optimisée pour l’impression et la découpe avec une Cricut.
+Contraintes :
+
+- Format final : **A4 portrait (21 × 29,7 cm)**
+- Fond : **totalement transparent**
+- Conserve exactement le style, les couleurs, les textes et les illustrations des stickers d’origine.
+- Chaque sticker doit être **entièrement séparé des autres**.
+- Laisse au minimum **X cm d’espace entre chaque sticker**.
+- Laisse **X cm de marge autour de la planche**.
+- Ajoute/conserve un **contour blanc propre d’environ X mm** autour de chaque sticker.
+- Aucun contour blanc ne doit toucher celui d’un autre sticker.
+- Ne coupe aucun élément et ne superpose aucun sticker.
+- Répartis les stickers harmonieusement pour utiliser au mieux toute la feuille A4.
+- Génère l’image en **PNG haute résolution avec transparence**, prête à être importée dans **Cricut Design Space – Imprimer puis découper**.
+
+Ne décris pas le résultat : **génère directement la nouvelle image**.
+
+MISE À JOUR
+-----------
+1. Extrais ce ZIP sur ton Bureau.
+2. Lance `METTRE_A_JOUR_NATHGPT.bat`.
+3. Redémarre / vérifie le service NathGPT.
+
+REMARQUE
+--------
+Les `X cm` et `X mm` restent volontairement dans le prompt, exactement comme demandé.

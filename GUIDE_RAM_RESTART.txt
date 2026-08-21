@@ -1,0 +1,43 @@
+NathGPT FINAL - Prompt image + nettoyage RAM
+================================================
+
+CHANGEMENT 1 : PROMPT DE MODIFICATION IMAGE
+-------------------------------------------
+Lors d'un modify: ou d'une génération de sticker utilisant le système
+de modification, NathGPT demande maintenant exactement :
+
+Modifie l'image jointe à ce message. Applique exactement les changements
+suivants et génère directement une NOUVELLE image modifiée. Conserve tout
+ce qui n'est pas demandé de changer. Ne te contente pas de décrire le
+résultat est donne uniquement la bonne image donne pas plusieurs images
+en meme temps.
+
+Puis il ajoute les MODIFICATIONS demandées.
+
+CHANGEMENT 2 : NETTOYAGE RAM CHROMIUM
+-------------------------------------
+Toutes les 2 générations/réponses terminées avec succès :
+
+1. NathGPT ferme la fenêtre ChatGPT / Chromium.
+2. Il vérifie que le port de débogage est fermé.
+3. Si nécessaire, il termine uniquement les processus Chromium utilisant
+   le profil NathGPT.
+4. Il attend brièvement.
+5. Il relance Chromium.
+6. Selenium se reconnecte automatiquement.
+7. Le profil persistant est conservé : la connexion ChatGPT n'est pas effacée.
+
+La valeur par défaut est 2.
+Pour la changer, tu peux ajouter dans .env :
+
+NATHGPT_RESTART_CHROMIUM_EVERY=2
+
+MISE A JOUR
+-----------
+1. Extrais le ZIP complet sur le Bureau.
+2. Ouvre le dossier NathGPT_FINAL_RAM_RESTART.
+3. Double-clique sur METTRE_A_JOUR_NATHGPT.bat.
+4. Attends le statut final du service.
+
+Le .env, le token Discord, la mémoire de salons et le profil Chromium
+restent conservés.

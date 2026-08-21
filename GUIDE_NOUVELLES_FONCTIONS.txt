@@ -1,0 +1,43 @@
+NathGPT FINAL MEMORY - Mise a jour Oracle
+=========================================
+
+NOUVEAUTES
+----------
+1. MEMOIRE PAR SALON
+   Chaque salon Discord de la categorie 1539922989200576512 garde sa propre
+   conversation ChatGPT. Les conversations sont donc independantes.
+   La memoire reste apres un redemarrage du bot.
+
+2. PIECES JOINTES
+   Tu peux joindre une image, un PDF, un TXT, du code, etc. avec ta question.
+   Tu peux aussi envoyer seulement un fichier : NathGPT demandera automatiquement
+   a ChatGPT de l'analyser.
+
+3. ANNULATION AUTOMATIQUE
+   Si ChatGPT reste bloque trop longtemps, NathGPT arrete proprement la demande et
+   affiche :
+   generation annulee automatiquement - utilise retry: pour relancer
+
+4. RETRY
+   Dans le meme salon, envoie simplement :
+   retry:
+   NathGPT relance la derniere demande de ce salon, pieces jointes comprises.
+
+5. STATUT DISCORD DYNAMIQUE
+   Le profil du bot indique automatiquement :
+   Disponible
+   1 génération en cours
+   1 génération en cours | 3 demandes en attente
+
+MISE A JOUR
+-----------
+1. Extrais le ZIP complet sur ton Bureau.
+2. Ouvre le dossier NathGPT_FINAL_MEMORY.
+3. Double-clique sur METTRE_A_JOUR_NATHGPT.bat.
+4. Attends la fin et verifie que le service est Active: active (running).
+
+Le .env, le token Discord, la connexion ChatGPT Chromium et la memoire existante
+sur Oracle ne sont pas supprimes.
+
+VM : ubuntu@158.178.213.168
+Cle : C:\Users\natha\Downloads\ssh-key-2026-08-19 (1).key

@@ -1,0 +1,36 @@
+DECOMP_CRICUT - MODE AUTOMATIQUE
+================================
+
+NOUVELLE COMMANDE
+-----------------
+Envoie dans un salon NathGPT :
+
+:decomp_cricut
+
+avec une image jointe.
+
+COMPORTEMENT
+------------
+1. NathGPT envoie :
+   dedutcion du temps de chargement
+
+2. NathGPT envoie l'image a ChatGPT et demande :
+   "combien de stikers il y a dans cette image? repond un nombre sans detailler"
+
+3. NathGPT envoie ensuite la progression :
+   XX images a generer temps restant XX image genere XX/XX
+
+4. Pour chaque sticker, NathGPT renvoie l'image de depart a ChatGPT et demande
+   de dire : "Genere le X stikers de cette planche separe des autres, genere format png sans fond avec des bords tres fin."
+
+5. Chaque sticker est renvoye dans Discord.
+
+6. Quand tout est fini, NathGPT envoie :
+   TERMINATED
+
+RETRY
+-----
+Si la sequence plante, tu peux envoyer :
+retry:
+
+dans le meme salon pour relancer la derniere decomposition.
