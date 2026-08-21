@@ -2142,7 +2142,10 @@ def discord_job_events(job_id):
             event = discord_bridge.next_event(job_id, username)
 
             if event is None:
-                yield ": keep-alive\n\n"
+                # Un vrai événement permet au navigateur de savoir que le
+                # flux est toujours vivant (les commentaires SSE ne sont pas
+                # visibles par EventSource côté JavaScript).
+                yield "data: " + json.dumps({"type": "keep-alive"}) + "\n\n"
                 continue
 
             yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"

@@ -732,7 +732,7 @@ async function startDiscordTurn(question, referenceImages = []) {
 }
 
 
-function listenForDiscordEvents(jobId) {
+function listenForDiscordEvents(jobId, retryAttempt = 0) {
 
     if (activeDiscordStream) {
         activeDiscordStream.close();
@@ -745,11 +745,68 @@ function listenForDiscordEvents(jobId) {
 
 
     activeDiscordStream = stream;
+    let lastEventAt = Date.now();
+    let closed = false;
+
+    const stopStream = () => {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        window.clearInterval(watchdog);
+        stream.close();
+        if (activeDiscordStream === stream) {
+            activeDiscordStream = null;
+        }
+    };
+
+    const reconnectOrFail = () => {
+        if (closed || activeDiscordStream !== stream || !isDiscordTurnActive) {
+            return;
+        }
+
+        stopStream();
+        if (retryAttempt < 2) {
+            if (currentTurnIsImage) {
+                updateImageGenerationProgress("Reconnexion au bot Discord…");
+            }
+            else {
+                updateThinkingStatus();
+            }
+            window.setTimeout(() => {
+                if (isDiscordTurnActive && !activeDiscordStream) {
+                    listenForDiscordEvents(jobId, retryAttempt + 1);
+                }
+            }, 1400);
+            return;
+        }
+
+        finishDiscordTurn();
+        hideThinking();
+        removeImageGeneration();
+        showErrorMessage("Le bot Discord ne répond plus. Tu peux réessayer sans perdre ta discussion.");
+        loadConversations();
+    };
+
+    const watchdog = window.setInterval(() => {
+        if (activeDiscordStream !== stream || !isDiscordTurnActive) {
+            stopStream();
+            return;
+        }
+        if (Date.now() - lastEventAt > 38000) {
+            reconnectOrFail();
+        }
+    }, 5000);
 
 
     stream.onmessage = function (event) {
 
         const payload = JSON.parse(event.data);
+        lastEventAt = Date.now();
+
+        if (payload.type === "keep-alive") {
+            return;
+        }
 
         if (payload.type === "status") {
 
@@ -780,8 +837,7 @@ function listenForDiscordEvents(jobId) {
 
         if (payload.type === "image") {
 
-            stream.close();
-            activeDiscordStream = null;
+            stopStream();
             finishDiscordTurn();
             loadConversations();
             recordGenerationDuration();
@@ -801,8 +857,7 @@ function listenForDiscordEvents(jobId) {
         }
 
 
-        stream.close();
-        activeDiscordStream = null;
+        stopStream();
         finishDiscordTurn();
         revealThinkingResponse(payload.message || "Réponse Discord vide.");
         removeImageGeneration();
@@ -811,15 +866,7 @@ function listenForDiscordEvents(jobId) {
 
 
     stream.onerror = function () {
-
-        if (stream.readyState === EventSource.CLOSED && activeDiscordStream === stream) {
-            activeDiscordStream = null;
-            finishDiscordTurn();
-            hideThinking();
-            removeImageGeneration();
-            showErrorMessage("La connexion au bot Discord a été interrompue.");
-            loadConversations();
-        }
+        reconnectOrFail();
     };
 }
 
@@ -4347,7 +4394,7 @@ function updateCricutProgress(payload) {
 }
 
 
-function listenForCricutEvents(jobId) {
+function listenForCricutEvents(jobId, retryAttempt = 0) {
 
     if (activeDiscordStream) {
         activeDiscordStream.close();
@@ -4360,6 +4407,10 @@ function listenForCricutEvents(jobId) {
 
     stream.onmessage = function (event) {
         const payload = JSON.parse(event.data);
+
+        if (payload.type === "keep-alive") {
+            return;
+        }
 
         if (payload.type === "cricut_status") {
             updateCricutStatus(payload.message || "Atelier Cricut en cours…");
@@ -4390,10 +4441,23 @@ function listenForCricutEvents(jobId) {
     };
 
     stream.onerror = function () {
-        if (stream.readyState === EventSource.CLOSED && activeDiscordStream === stream) {
-            activeDiscordStream = null;
+        if (activeDiscordStream !== stream || !isDiscordTurnActive) {
+            return;
+        }
+
+        stream.close();
+        activeDiscordStream = null;
+        if (retryAttempt < 2) {
+            updateCricutStatus("Reconnexion à l'atelier Cricut…");
+            window.setTimeout(() => {
+                if (isDiscordTurnActive && !activeDiscordStream) {
+                    listenForCricutEvents(jobId, retryAttempt + 1);
+                }
+            }, 1400);
+        }
+        else {
             finishDiscordTurn();
-            updateCricutStatus("La connexion au bot Discord a été interrompue.");
+            updateCricutStatus("Le bot Discord ne répond plus. Tu peux actualiser la page pour reprendre le suivi.");
         }
     };
 }

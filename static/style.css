@@ -3235,7 +3235,7 @@ textarea::placeholder {
 
     .staff-shell {
         width: min(100% - 26px, 1040px);
-        padding: 25px 0 44px;
+        padding: calc(25px + env(safe-area-inset-top)) 0 calc(44px + env(safe-area-inset-bottom));
     }
 
     .staff-header { margin-bottom: 25px; }
@@ -3251,7 +3251,10 @@ textarea::placeholder {
     .staff-table-card th,
     .staff-table-card td { padding: 13px 15px; }
 
-    .settings-shell { width: calc(100% - 26px); padding: 25px 0 44px; }
+    .settings-shell {
+        width: calc(100% - 26px);
+        padding: calc(25px + env(safe-area-inset-top)) 0 calc(44px + env(safe-area-inset-bottom));
+    }
     .settings-header { margin-bottom: 25px; }
     .settings-brand h1 { font-size: 20px; }
     .settings-brand img { width: 40px; height: 40px; }
@@ -3284,8 +3287,8 @@ textarea::placeholder {
         background: rgba(33,33,33,.92);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        padding-top: env(safe-area-inset-top);
-        height: calc(60px + env(safe-area-inset-top));
+        padding-top: max(8px, env(safe-area-inset-top));
+        height: calc(60px + max(8px, env(safe-area-inset-top)));
     }
 
 
