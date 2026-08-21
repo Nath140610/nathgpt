@@ -21,7 +21,6 @@ from werkzeug.utils import secure_filename
 
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import hashlib
 import json
@@ -136,7 +135,6 @@ ALLOW_IP_AUTOLOGIN = os.environ.get(
 STAFF_PASSWORD = os.environ.get("STAFF_PASSWORD", "")
 STAFF_SESSION_SECONDS = 8 * 60 * 60
 STAFF_ACTIVE_WINDOW_SECONDS = 10 * 60
-FREE_DAILY_IMAGE_LIMIT = 3
 
 
 # ============================================================
@@ -186,16 +184,6 @@ def utc_now():
     return datetime.now(
         timezone.utc
     ).isoformat()
-
-
-def quota_day():
-    """Jour du quota en heure française, avec repli sur UTC si nécessaire."""
-    try:
-        return datetime.now(ZoneInfo("Europe/Paris")).date().isoformat()
-    except ZoneInfoNotFoundError:
-        # Certaines installations Windows n'ont pas la base tzdata. Render
-        # fournit normalement le fuseau ; le repli évite tout plantage local.
-        return datetime.now(timezone.utc).date().isoformat()
 
 
 # ============================================================
@@ -655,57 +643,6 @@ def find_user_key(users, username):
 
 
     return None
-
-
-def image_quota_status(username, users=None):
-    """Retourne le quota journalier d'images d'un compte (heure de Paris)."""
-    users = users if users is not None else load_json(USERS_FILE, {})
-    user_key = find_user_key(users, username)
-    if not user_key:
-        return None
-
-    user = users[user_key]
-    if user.get("pro_enabled"):
-        return {
-            "user_key": user_key,
-            "is_pro": True,
-            "count": 0,
-            "limit": None,
-            "day": quota_day(),
-        }
-
-    day = quota_day()
-    usage = user.get("image_daily_usage", {})
-    count = usage.get("count", 0) if usage.get("day") == day else 0
-    try:
-        count = max(0, int(count))
-    except (TypeError, ValueError):
-        count = 0
-
-    return {
-        "user_key": user_key,
-        "is_pro": False,
-        "count": count,
-        "limit": FREE_DAILY_IMAGE_LIMIT,
-        "day": day,
-    }
-
-
-def consume_image_generation(username):
-    """Compte une demande d'image seulement après son envoi à Discord."""
-    users = load_json(USERS_FILE, {})
-    quota = image_quota_status(username, users)
-    if not quota or quota["is_pro"]:
-        return quota
-
-    user = users[quota["user_key"]]
-    user["image_daily_usage"] = {
-        "day": quota["day"],
-        "count": quota["count"] + 1,
-    }
-    save_json(USERS_FILE, users)
-    quota["count"] += 1
-    return quota
 
 
 # ============================================================
@@ -1330,6 +1267,19 @@ def favicon():
         "logo.png",
         mimetype="image/png"
     )
+
+
+@app.route("/service-worker.js")
+def service_worker():
+    """Expose le worker à la racine afin qu'il contrôle toute la PWA."""
+    response = send_from_directory(
+        BASE_DIR / "static",
+        "service-worker.js",
+        mimetype="application/javascript",
+    )
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.route("/health")
@@ -1976,7 +1926,7 @@ def discord_turn():
         discord_bridge.delete_conversation(user_key, conversation_id)
         return jsonify({
             "pro_activated": True,
-            "message": "Compte Pro activé : tes générations d'images sont illimitées.",
+            "message": "Compte Pro activé. Les générations d'images sont déjà illimitées pour tous les comptes.",
         })
 
     try:
@@ -1988,14 +1938,6 @@ def discord_turn():
         question,
         bool(reference_images),
     )
-    quota = image_quota_status(username)
-    if expects_image and quota and not quota["is_pro"] and quota["count"] >= quota["limit"]:
-        return jsonify({
-            "error": (
-                f"Limite quotidienne atteinte : {quota['limit']}/{quota['limit']} images. "
-                "Active ton compte Pro avec PRO_ACCOUNT=True pour des générations illimitées."
-            )
-        }), 429
 
     save_conversation_message(
         username,
@@ -2030,13 +1972,7 @@ def discord_turn():
         )
         return jsonify({"error": "Impossible d'envoyer la question à Discord."}), 502
 
-    if expects_image:
-        quota = consume_image_generation(username)
-
-    return jsonify({
-        "job_id": job_id,
-        "image_quota": quota,
-    })
+    return jsonify({"job_id": job_id})
 
 
 @app.route("/api/cricut/start", methods=["POST"])
@@ -2059,15 +1995,6 @@ def start_cricut_job():
     if len(reference_images) != 1:
         return jsonify({"error": "Ajoute exactement une image à adapter en stickers."}), 400
 
-    quota = image_quota_status(user_key, users)
-    if quota and not quota["is_pro"] and quota["count"] >= quota["limit"]:
-        return jsonify({
-            "error": (
-                f"Limite quotidienne atteinte : {quota['limit']}/{quota['limit']} images. "
-                "Active ton compte Pro avec PRO_ACCOUNT=True pour des générations illimitées."
-            )
-        }), 429
-
     try:
         job_id = discord_bridge.start_cricut_job(user_key, reference_images[0])
     except RuntimeError as error:
@@ -2084,11 +2011,9 @@ def start_cricut_job():
         f"✦ Adaptation Cricut : {reference_images[0]['filename']}",
     )
 
-    quota = consume_image_generation(user_key)
     return jsonify({
         "job_id": job_id,
         "conversation_id": conversation_id,
-        "image_quota": quota,
     })
 
 

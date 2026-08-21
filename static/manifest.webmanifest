@@ -1,0 +1,19 @@
+{
+  "name": "NathGPT",
+  "short_name": "NathGPT",
+  "description": "Création d'images et adaptation de stickers avec NathGPT.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#202120",
+  "theme_color": "#202725",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

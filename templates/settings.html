@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#202725">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="/logo.png">
     <title>Paramètres - NathGPT</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
 </head>
@@ -37,6 +42,17 @@
             <a class="settings-logout" href="{{ url_for('logout') }}">Se déconnecter</a>
         </section>
 
+        <section class="settings-card settings-notifications">
+            <p class="settings-eyebrow">Notifications</p>
+            <h2>Me prévenir quand c'est prêt</h2>
+            <p>
+                Reçois une alerte lorsque NathGPT termine une image ou une préparation Cricut,
+                même si tu consultes une autre app.
+            </p>
+            <button id="enableNotifications" class="settings-notification-button" type="button">Activer les notifications</button>
+            <small id="notificationHelp" class="settings-notification-help"></small>
+        </section>
+
         <section class="settings-card settings-danger">
             <p class="settings-eyebrow">Zone sensible</p>
             <h2>Supprimer mon compte</h2>
@@ -54,5 +70,48 @@
             </form>
         </section>
     </main>
+    <script>
+        const notificationButton = document.getElementById("enableNotifications");
+        const notificationHelp = document.getElementById("notificationHelp");
+
+        function isIosStandalone() {
+            return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+        }
+
+        function updateNotificationUi(message) {
+            if (!("Notification" in window)) {
+                notificationButton.disabled = true;
+                notificationHelp.textContent = "Les notifications ne sont pas disponibles dans ce navigateur.";
+                return;
+            }
+            if (Notification.permission === "granted") {
+                notificationButton.disabled = true;
+                notificationButton.textContent = "✓ Notifications activées";
+                notificationHelp.textContent = "Tu seras averti lorsqu'une génération se termine.";
+                return;
+            }
+            notificationHelp.textContent = message || "Tu pourras modifier cette autorisation dans les réglages du navigateur.";
+        }
+
+        notificationButton.addEventListener("click", async () => {
+            const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            if (isIos && !isIosStandalone()) {
+                updateNotificationUi("Sur iPhone : ouvre ce site dans Safari, touche Partager puis « Sur l’écran d’accueil ». Ouvre ensuite NathGPT depuis son icône.");
+                return;
+            }
+            try {
+                if ("serviceWorker" in navigator) {
+                    await navigator.serviceWorker.register("/service-worker.js");
+                }
+                const permission = await Notification.requestPermission();
+                updateNotificationUi(permission === "granted" ? "" : "Autorisation non accordée. Tu peux réessayer ou vérifier les réglages du navigateur.");
+            }
+            catch (_) {
+                updateNotificationUi("Impossible d'activer les notifications sur cet appareil.");
+            }
+        });
+
+        updateNotificationUi();
+    </script>
 </body>
 </html>

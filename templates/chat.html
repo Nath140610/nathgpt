@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#202725">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+    <link rel="apple-touch-icon" href="/logo.png">
     <title>NathGPT</title>
 
     <link
@@ -773,6 +778,10 @@ function listenForDiscordEvents(jobId) {
 
 
             receiveGeneratedImage(payload.url);
+            notifyGenerationReady(
+                "Ton image est prête",
+                "NathGPT a terminé ta génération."
+            );
             return;
         }
 
@@ -881,6 +890,36 @@ function showErrorMessage(text, onRetry = null) {
 
     messages.appendChild(card);
     scrollToBottom();
+}
+
+
+async function notifyGenerationReady(title, body) {
+
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+        return;
+    }
+
+    // Une notification est utile quand la personne consulte une autre app,
+    // pas lorsqu'elle regarde déjà le résultat apparaître à l'écran.
+    if (!document.hidden) {
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        await registration.showNotification(title, {
+            body,
+            icon: "/logo.png",
+            badge: "/logo.png",
+            tag: "nathgpt-generation-ready",
+            renotify: true,
+            data: { url: window.location.pathname }
+        });
+    }
+    catch (_) {
+        // Le résultat reste affiché dans l'historique même si le navigateur
+        // ne permet pas d'afficher la notification.
+    }
 }
 
 
@@ -4325,6 +4364,10 @@ function listenForCricutEvents(jobId) {
 
         if (payload.type === "cricut_complete") {
             completeCricutGeneration(payload.images || []);
+            notifyGenerationReady(
+                "Tes stickers sont prêts",
+                "NathGPT a terminé la préparation Cricut."
+            );
         }
         else {
             updateCricutStatus(payload.message || "La génération Cricut a été interrompue.");
@@ -4581,6 +4624,12 @@ function newChat() {
 
 
 input.focus();
+
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/service-worker.js").catch(() => {
+        // Le chat reste utilisable si le navigateur ne prend pas en charge la PWA.
+    });
+}
 
 loadConversations();
 restoreCricutGeneration();

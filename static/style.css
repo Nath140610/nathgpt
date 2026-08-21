@@ -2862,6 +2862,11 @@ textarea::placeholder {
 .settings-delete-form input { padding: 11px 12px; border-radius: 10px; }
 .settings-delete-button { margin-top: 8px; padding: 11px 13px; border: 1px solid rgba(255, 138, 138, .36); border-radius: 10px; color: #fff0f0; background: rgba(169, 63, 70, .52); font: inherit; cursor: pointer; }
 .settings-delete-button:hover { background: rgba(199, 72, 80, .68); }
+.settings-notifications { border-color: rgba(116, 232, 181, .18); background: radial-gradient(circle at 92% 12%, rgba(76, 232, 158, .13), transparent 32%), rgba(47,47,51,.68); }
+.settings-notification-button { padding: 11px 14px; border: 1px solid rgba(142,255,204,.35); border-radius: 11px; color: #ecfff5; background: linear-gradient(110deg, rgba(36,161,104,.78), rgba(62,203,147,.52)); box-shadow: inset 0 1px rgba(255,255,255,.16), 0 9px 20px rgba(13,104,61,.18); font: inherit; font-weight: 750; cursor: pointer; }
+.settings-notification-button:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.settings-notification-button:disabled { opacity: .72; cursor: default; transform: none; }
+.settings-notification-help { display: block; max-width: 550px; margin-top: 11px; color: #aebcb4; font-size: 12px; line-height: 1.45; }
 
 
 /* ========================================================= */
