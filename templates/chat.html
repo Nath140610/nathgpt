@@ -6,8 +6,10 @@
     <meta name="theme-color" content="#202725">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
-    <link rel="apple-touch-icon" href="/logo.png">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest', v=asset_version) }}">
+    <link rel="icon" type="image/png" href="/logo.png?v={{ asset_version }}">
+    <link rel="apple-touch-icon" sizes="800x800" href="/logo.png?v={{ asset_version }}">
+    <meta name="apple-mobile-web-app-title" content="NathGPT">
     <title>NathGPT</title>
 
     <link
@@ -17,6 +19,19 @@
 </head>
 
 <body class="chat-page" data-account-key="{{ username }}">
+
+<div class="launch-screen" id="launchScreen" role="status" aria-label="Ouverture de NathGPT">
+    <div class="launch-glow"></div>
+    <span class="launch-star launch-star-one">✦</span>
+    <span class="launch-star launch-star-two">✧</span>
+    <span class="launch-star launch-star-three">·</span>
+    <div class="launch-logo-shell"><img src="/logo.png" alt=""></div>
+    <div class="launch-copy">
+        <strong>NathGPT</strong>
+        <span>Préparation de ton espace créatif</span>
+    </div>
+    <div class="launch-progress"><i></i></div>
+</div>
 
 <div class="app">
 
@@ -4629,6 +4644,28 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/service-worker.js").catch(() => {
         // Le chat reste utilisable si le navigateur ne prend pas en charge la PWA.
     });
+}
+
+function finishLaunchScreen() {
+    const screen = document.getElementById("launchScreen");
+    if (!screen) {
+        return;
+    }
+
+    window.setTimeout(() => {
+        screen.classList.add("is-finished");
+        window.setTimeout(() => screen.remove(), 520);
+    }, 780);
+}
+
+window.addEventListener("load", finishLaunchScreen, { once: true });
+window.setTimeout(finishLaunchScreen, 3500);
+
+// Vibration légère uniquement là où l'API est disponible (notamment Android).
+// Safari iPhone ne propose généralement pas cette API, sans empêcher l'animation.
+if (navigator.vibrate && !sessionStorage.getItem("nathgpt-launch-haptic")) {
+    navigator.vibrate([9, 35, 13]);
+    sessionStorage.setItem("nathgpt-launch-haptic", "1");
 }
 
 loadConversations();

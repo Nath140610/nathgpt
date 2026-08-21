@@ -60,6 +60,50 @@ textarea {
 
 
 /* ========================================================= */
+/* ECRAN D'OUVERTURE PWA */
+/* ========================================================= */
+
+.launch-screen {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: grid;
+    overflow: hidden;
+    place-content: center;
+    justify-items: center;
+    gap: 14px;
+    padding: 30px;
+    color: #f5fff9;
+    background:
+        radial-gradient(circle at 50% 42%, rgba(77, 228, 154, .14), transparent 27%),
+        radial-gradient(circle at 23% 85%, rgba(98, 127, 255, .12), transparent 36%),
+        #1c1e1d;
+    transition: opacity .42s ease, visibility 0s linear .42s;
+    isolation: isolate;
+}
+
+.launch-screen.is-finished { opacity: 0; visibility: hidden; pointer-events: none; }
+.launch-glow { position: absolute; z-index: -1; width: min(90vw, 430px); aspect-ratio: 1; border-radius: 50%; background: conic-gradient(from 0deg, transparent, rgba(100,255,183,.18), transparent, rgba(132,156,255,.16), transparent); filter: blur(14px); animation: launch-glow-spin 4.5s linear infinite; }
+.launch-logo-shell { display: grid; width: 92px; height: 92px; place-items: center; border: 1px solid rgba(204,255,227,.34); border-radius: 29px; background: linear-gradient(145deg, rgba(255,255,255,.16), rgba(91,238,159,.11)); box-shadow: inset 0 1px rgba(255,255,255,.28), 0 0 0 11px rgba(104,255,181,.06), 0 25px 45px rgba(0,0,0,.28); animation: launch-logo-in .72s cubic-bezier(.17,1.3,.28,1) both, launch-logo-float 2.7s 1s ease-in-out infinite; }
+.launch-logo-shell img { width: 72px; height: 72px; object-fit: contain; border-radius: 20px; }
+.launch-copy { display: grid; gap: 4px; text-align: center; animation: launch-copy-in .65s .13s ease both; }
+.launch-copy strong { font-size: 25px; letter-spacing: -.045em; }
+.launch-copy span { color: #b9c9bf; font-size: 12px; }
+.launch-progress { width: min(210px, 68vw); height: 5px; margin-top: 4px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.10); box-shadow: inset 0 1px 2px rgba(0,0,0,.26); }
+.launch-progress i { display: block; width: 52%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4ee097, #b5ffe0, #67bfeb); box-shadow: 0 0 13px rgba(106,255,185,.72); animation: launch-progress 1.35s cubic-bezier(.2,.8,.3,1) infinite; }
+.launch-star { position: absolute; color: #d9ffea; text-shadow: 0 0 18px rgba(104,255,185,.9); animation: launch-star 2.2s ease-in-out infinite; }
+.launch-star-one { top: 26%; left: 28%; font-size: 25px; }
+.launch-star-two { right: 27%; top: 34%; font-size: 19px; animation-delay: .6s; }
+.launch-star-three { bottom: 28%; right: 36%; font-size: 31px; animation-delay: 1.1s; }
+@keyframes launch-glow-spin { to { transform: rotate(360deg); } }
+@keyframes launch-logo-in { from { opacity: 0; transform: scale(.45) rotate(-15deg); filter: blur(10px); } to { opacity: 1; transform: scale(1) rotate(0); filter: blur(0); } }
+@keyframes launch-logo-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes launch-copy-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes launch-progress { 0% { transform: translateX(-110%); } 55% { transform: translateX(125%); } 100% { transform: translateX(255%); } }
+@keyframes launch-star { 0%,100% { opacity: .24; transform: scale(.72) rotate(0); } 50% { opacity: 1; transform: scale(1.28) rotate(17deg); } }
+
+
+/* ========================================================= */
 /* AUTH */
 /* ========================================================= */
 

@@ -29,6 +29,9 @@ import re
 import secrets
 import threading
 import unicodedata
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 from discord_bridge import DiscordBridge
 
@@ -103,6 +106,19 @@ def get_data_dir():
 DATA_DIR = get_data_dir()
 
 USERS_FILE = DATA_DIR / "users.json"
+
+# Les comptes peuvent être déplacés vers Supabase sans changer les routes
+# Flask existantes. Le disque local reste une sauvegarde de secours pour les
+# conversations et en cas d'indisponibilité temporaire de Supabase.
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get(
+    "SUPABASE_SECRET_KEY",
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY", ""),
+).strip()
+SUPABASE_ACCOUNTS_TABLE = os.environ.get(
+    "SUPABASE_ACCOUNTS_TABLE",
+    "nathgpt_accounts",
+).strip() or "nathgpt_accounts"
 
 TOKENS_FILE = DATA_DIR / "tokens.json"
 
@@ -215,33 +231,116 @@ def atomic_write_json(path: Path, data):
 # CHARGEMENT JSON
 # ============================================================
 
+def supabase_accounts_enabled():
+    return bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+
+
+def supabase_request(method, path, payload=None, extra_headers=None):
+    """Appelle l'API REST Supabase depuis le serveur uniquement."""
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+
+    data = None
+    if payload is not None:
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    request = Request(
+        f"{SUPABASE_URL}/rest/v1/{path.lstrip('/')}",
+        data=data,
+        headers=headers,
+        method=method,
+    )
+
+    try:
+        with urlopen(request, timeout=12) as response:
+            body = response.read().decode("utf-8")
+            return json.loads(body) if body else None
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as error:
+        raise RuntimeError("Connexion Supabase indisponible.") from error
+
+
+def load_supabase_accounts():
+    rows = supabase_request(
+        "GET",
+        f"{SUPABASE_ACCOUNTS_TABLE}?select=username,data",
+    ) or []
+
+    accounts = {}
+    for row in rows:
+        username = str(row.get("username", "")).strip()
+        details = row.get("data")
+        if username and isinstance(details, dict):
+            accounts[username] = details
+    return accounts
+
+
+def save_supabase_accounts(accounts):
+    rows = [
+        {"username": str(username), "data": details}
+        for username, details in accounts.items()
+        if isinstance(details, dict)
+    ]
+    existing_rows = supabase_request(
+        "GET",
+        f"{SUPABASE_ACCOUNTS_TABLE}?select=username",
+    ) or []
+    existing_names = {
+        str(row.get("username", ""))
+        for row in existing_rows
+        if row.get("username")
+    }
+    wanted_names = {row["username"] for row in rows}
+
+    if rows:
+        supabase_request(
+            "POST",
+            f"{SUPABASE_ACCOUNTS_TABLE}?on_conflict=username",
+            rows,
+            {"Prefer": "resolution=merge-duplicates,return=minimal"},
+        )
+
+    for username in existing_names - wanted_names:
+        supabase_request(
+            "DELETE",
+            f"{SUPABASE_ACCOUNTS_TABLE}?username=eq.{quote(username, safe='')}",
+            extra_headers={"Prefer": "return=minimal"},
+        )
+
+
+def load_local_json(path: Path, default):
+    if not path.exists():
+        atomic_write_json(path, default)
+        return default
+
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return default
+
+
 def load_json(path: Path, default):
 
     with _file_lock:
+        if path == USERS_FILE and supabase_accounts_enabled():
+            try:
+                accounts = load_supabase_accounts()
+                # Première migration : les anciens comptes locaux sont envoyés
+                # automatiquement si la table Supabase est encore vide.
+                if not accounts:
+                    local_accounts = load_local_json(path, default)
+                    if local_accounts:
+                        save_supabase_accounts(local_accounts)
+                        return local_accounts
+                return accounts
+            except RuntimeError:
+                print("Supabase indisponible : utilisation temporaire de la sauvegarde locale.")
 
-        if not path.exists():
-
-            atomic_write_json(
-                path,
-                default
-            )
-
-            return default
-
-        try:
-
-            return json.loads(
-                path.read_text(
-                    encoding="utf-8"
-                )
-            )
-
-        except (
-            json.JSONDecodeError,
-            OSError
-        ):
-
-            return default
+        return load_local_json(path, default)
 
 
 # ============================================================
@@ -251,7 +350,11 @@ def load_json(path: Path, default):
 def save_json(path: Path, data):
 
     with _file_lock:
-
+        if path == USERS_FILE and supabase_accounts_enabled():
+            try:
+                save_supabase_accounts(data)
+            except RuntimeError:
+                print("Écriture Supabase impossible : sauvegarde locale conservée.")
         atomic_write_json(
             path,
             data

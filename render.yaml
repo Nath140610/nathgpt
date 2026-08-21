@@ -27,6 +27,10 @@ services:
         value: "false"
       - key: STAFF_PASSWORD
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
       - key: DISCORD_TOKEN
         sync: false
       - key: DISCORD_CATEGORY_ID
