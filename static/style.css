@@ -2740,7 +2740,7 @@ textarea::placeholder {
 
 .staff-stats {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 14px;
     margin-bottom: 16px;
 }
@@ -2764,6 +2764,8 @@ textarea::placeholder {
 .staff-stat strong { display: block; margin-top: 9px; font-size: 31px; }
 .staff-stat small { display: block; margin-top: 3px; color: #7f8290; font-size: 11px; }
 .staff-stat.active { border-color: rgba(124, 236, 180, .22); background: rgba(44, 86, 65, .24); }
+.staff-stat.cricut { border-color: rgba(117, 239, 189, .20); background: linear-gradient(135deg, rgba(39, 104, 74, .24), rgba(58, 87, 101, .20)); }
+.staff-stat.danger { border-color: rgba(255, 148, 148, .20); background: rgba(109, 49, 54, .20); }
 
 .staff-table-card { overflow: hidden; border-radius: 18px; }
 .staff-table-title { justify-content: space-between; gap: 14px; padding: 21px 22px; border-bottom: 1px solid rgba(255,255,255,.07); }
@@ -2806,6 +2808,8 @@ textarea::placeholder {
 .staff-delete summary { display: inline-block; color: #ffc0c0; list-style: none; }
 .staff-delete summary::-webkit-details-marker { display: none; }
 .staff-delete[open] { padding: 9px; border-radius: 10px; background: rgba(137, 54, 54, .12); }
+.staff-delete-conversations[open] { background: rgba(137, 94, 54, .16); }
+.staff-delete-conversations summary { color: #ffd79f; }
 .staff-delete[open] form { display: grid; align-items: stretch; margin-top: 8px; }
 .staff-delete label { max-width: 185px; color: #f0c1c1; font-size: 11px; line-height: 1.35; }
     .staff-delete input { width: 170px; }
@@ -2891,6 +2895,71 @@ textarea::placeholder {
 }
 
 .mobile-cricut-entry { display: none; }
+
+.chat-error-card {
+    position: relative;
+    display: grid;
+    width: min(100%, 560px);
+    min-height: 150px;
+    margin: 18px auto 30px;
+    padding: 25px 24px 20px 94px;
+    overflow: hidden;
+    align-items: center;
+    border: 1px solid rgba(255, 146, 146, .28);
+    border-radius: 20px;
+    color: #fff5f4;
+    background:
+        radial-gradient(circle at 8% 50%, rgba(255, 103, 111, .24), transparent 27%),
+        radial-gradient(circle at 97% 0%, rgba(255, 190, 113, .12), transparent 30%),
+        linear-gradient(135deg, rgba(82, 37, 45, .94), rgba(45, 42, 48, .96));
+    box-shadow: 0 24px 50px rgba(0,0,0,.24), inset 0 1px rgba(255,255,255,.08);
+    animation: chat-error-enter .48s cubic-bezier(.2,.9,.25,1.15) both;
+    isolation: isolate;
+}
+
+.chat-error-card::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    width: 155px;
+    height: 155px;
+    left: -29px;
+    top: -3px;
+    border: 1px solid rgba(255,177,177,.17);
+    border-radius: 50%;
+    box-shadow: 0 0 0 18px rgba(255,117,123,.045), 0 0 0 43px rgba(255,182,115,.025);
+    animation: chat-error-pulse 2.3s ease-in-out infinite;
+}
+
+.chat-error-icon {
+    position: absolute;
+    left: 24px;
+    display: grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border: 1px solid rgba(255,231,229,.60);
+    border-radius: 17px;
+    color: #fff;
+    background: linear-gradient(145deg, #ff858a, #d44d5b);
+    box-shadow: inset 0 1px rgba(255,255,255,.42), 0 10px 24px rgba(76,7,18,.32);
+    font-size: 25px;
+    font-weight: 900;
+    animation: chat-error-icon .58s .12s cubic-bezier(.17,1.45,.3,1) both;
+}
+
+.chat-error-copy strong { display: block; font-size: 15px; }
+.chat-error-copy p { margin: 7px 0 0; color: #f0c8ca; font-size: 13px; line-height: 1.5; }
+.chat-error-retry { width: max-content; margin-top: 15px; padding: 8px 12px; border: 1px solid rgba(255,207,204,.30); border-radius: 10px; color: #fff8f7; background: rgba(255,255,255,.10); font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; transition: transform .18s ease, background .18s ease; }
+.chat-error-retry:hover { background: rgba(255,255,255,.17); transform: translateY(-1px); }
+.chat-error-retry:disabled { opacity: .7; cursor: wait; }
+.chat-error-orbit { position: absolute; z-index: -1; border: 1px solid rgba(255,201,201,.17); border-radius: 50%; animation: chat-error-orbit 5s linear infinite; }
+.orbit-one { width: 86px; height: 86px; right: 5%; top: 5%; }
+.orbit-two { width: 122px; height: 122px; right: -24px; bottom: -60px; animation-direction: reverse; animation-duration: 7s; }
+.chat-error-particle { position: absolute; z-index: -1; color: #ffd0aa; text-shadow: 0 0 14px rgba(255,148,109,.8); animation: chat-error-spark 1.9s ease-in-out infinite; }
+.particle-one { right: 13%; top: 17%; font-size: 18px; }
+.particle-two { right: 27%; bottom: 15%; font-size: 26px; animation-delay: .5s; }
+.chat-error-card.is-retrying { animation: chat-error-retry-out .42s ease both; }
 
 .cricut-activation {
     position: relative;
@@ -3101,6 +3170,12 @@ textarea::placeholder {
 @keyframes cricut-activation-check { from { opacity: 0; transform: scale(.18) rotate(-32deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
 @keyframes cricut-activation-ring { from { opacity: .9; transform: scale(.5); } to { opacity: 0; transform: scale(1.24); } }
 @keyframes cricut-spark-pop { 0%, 100% { opacity: .28; transform: scale(.72) rotate(0deg); } 48% { opacity: 1; transform: scale(1.2) rotate(17deg); } }
+@keyframes chat-error-enter { from { opacity: 0; transform: translateY(14px) scale(.95); filter: blur(7px); } to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); } }
+@keyframes chat-error-icon { from { opacity: 0; transform: scale(.2) rotate(-24deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes chat-error-pulse { 0%,100% { transform: scale(.92); opacity: .55; } 50% { transform: scale(1.08); opacity: 1; } }
+@keyframes chat-error-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes chat-error-spark { 0%,100% { opacity: .25; transform: scale(.7); } 50% { opacity: .95; transform: scale(1.22); } }
+@keyframes chat-error-retry-out { to { opacity: 0; transform: scale(.93); filter: blur(5px); } }
 
 
 /* ========================================================= */
@@ -3294,6 +3369,27 @@ textarea::placeholder {
         margin: 13px auto 24px;
         padding: 14px;
         border-radius: 20px;
+    }
+
+
+    .chat-error-card {
+        width: calc(100% - 18px);
+        min-height: 0;
+        margin: 14px auto 24px;
+        padding: 78px 17px 18px;
+        text-align: center;
+    }
+
+
+    .chat-error-icon {
+        top: 18px;
+        left: calc(50% - 24px);
+    }
+
+
+    .chat-error-retry {
+        margin-left: auto;
+        margin-right: auto;
     }
 
 

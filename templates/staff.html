@@ -54,12 +54,27 @@
             <section class="staff-stats" aria-label="Résumé des comptes">
                 <div class="staff-stat">
                     <span>Comptes enregistrés</span>
-                    <strong>{{ accounts|length }}</strong>
+                    <strong>{{ stats.accounts }}</strong>
                 </div>
                 <div class="staff-stat active">
                     <span>Actifs récemment</span>
-                    <strong>{{ active_count }}</strong>
+                    <strong>{{ stats.active }}</strong>
                     <small>activité des {{ active_window_minutes }} dernières minutes</small>
+                </div>
+                <div class="staff-stat">
+                    <span>Discussions enregistrées</span>
+                    <strong>{{ stats.conversations }}</strong>
+                    <small>{{ stats.messages }} messages au total</small>
+                </div>
+                <div class="staff-stat cricut">
+                    <span>Comptes Cricut</span>
+                    <strong>{{ stats.cricut_accounts }}</strong>
+                    <small>{{ stats.images }} image(s) générée(s)</small>
+                </div>
+                <div class="staff-stat danger">
+                    <span>Comptes bannis</span>
+                    <strong>{{ stats.banned }}</strong>
+                    <small>bannissement encore actif</small>
                 </div>
             </section>
 
@@ -123,6 +138,16 @@
                                                 <button type="submit" class="staff-action-warn">Bannir</button>
                                             </form>
                                         {% endif %}
+
+                                        <details class="staff-delete staff-delete-conversations">
+                                            <summary>Effacer les discussions</summary>
+                                            <form method="POST" action="{{ url_for('staff_account_action', username=account.username, action='delete-conversations') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ staff_csrf_token }}">
+                                                <label>Écris <strong>SUPPRIMER</strong> pour effacer toutes les discussions et les salons Discord</label>
+                                                <input name="confirm_delete_conversations" required autocomplete="off">
+                                                <button type="submit" class="staff-action-danger">Effacer toutes les discussions</button>
+                                            </form>
+                                        </details>
 
                                         <details class="staff-delete">
                                             <summary>Supprimer</summary>

@@ -54,12 +54,17 @@ class DiscordBridge:
             30,
             int(os.environ.get("DISCORD_RESPONSE_TIMEOUT_SECONDS", "240"))
         )
+        self.connect_timeout = min(
+            90,
+            max(30, int(os.environ.get("DISCORD_CONNECT_TIMEOUT_SECONDS", "60")))
+        )
         self.store_path = data_dir / "discord_conversations.json"
         self.image_store_path = data_dir / "discord_image_messages.json"
         self._lock = threading.RLock()
         self._ready = threading.Event()
         self._loop = None
         self._client = None
+        self._thread = None
         self._discord = None
         self._started = False
         self._startup_error = None
@@ -75,8 +80,15 @@ class DiscordBridge:
 
     def start(self):
         """Démarre le bot une seule fois, sans bloquer Flask."""
-        if self._started:
-            return
+        with self._lock:
+            if self._started and self._thread and self._thread.is_alive():
+                return
+            # Un thread arrêté ne doit jamais bloquer les nouvelles demandes :
+            # Render peut reconnecter le bot après une période de veille.
+            if self._started:
+                self._started = False
+                self._loop = None
+                self._client = None
 
         if not self.token:
             print("Discord désactivé : définis DISCORD_TOKEN avant de lancer le serveur.")
@@ -88,11 +100,17 @@ class DiscordBridge:
             print(f"Discord désactivé : dépendance discord.py absente ({error}).")
             return
 
-        self._discord = discord
-        self._started = True
-        self._startup_error = None
+        with self._lock:
+            self._discord = discord
+            self._started = True
+            self._startup_error = None
         print("Connexion du bot Discord en cours...", flush=True)
-        threading.Thread(target=self._run, name="nathgpt-discord", daemon=True).start()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="nathgpt-discord",
+            daemon=True,
+        )
+        self._thread.start()
 
     def set_result_handler(self, handler):
         """Enregistre le résultat final, même sans client web connecté."""
@@ -115,13 +133,14 @@ class DiscordBridge:
         if self._startup_error:
             raise RuntimeError(self._startup_error)
 
-        if not self._ready.wait(timeout=25):
+        if not self._ready.wait(timeout=self.connect_timeout):
             if self._startup_error:
                 raise RuntimeError(self._startup_error)
 
             raise RuntimeError(
-                "Le bot Discord ne s'est pas connecté. Vérifie le token "
-                "et active Message Content Intent dans Discord Developer Portal."
+                "Le bot Discord est toujours en cours de connexion. Réessaie "
+                "dans quelques secondes ; si le problème persiste, vérifie le "
+                "token et Message Content Intent dans Discord Developer Portal."
             )
 
         job_id = uuid.uuid4().hex
@@ -174,8 +193,12 @@ class DiscordBridge:
             self.start()
         if self._startup_error:
             raise RuntimeError(self._startup_error)
-        if not self._ready.wait(timeout=25):
-            raise RuntimeError("Le bot Discord ne s'est pas connectÃ©.")
+        if not self._ready.wait(timeout=self.connect_timeout):
+            if self._startup_error:
+                raise RuntimeError(self._startup_error)
+            raise RuntimeError(
+                "Le bot Discord est toujours en cours de connexion. Réessaie dans quelques secondes."
+            )
 
         job_id = uuid.uuid4().hex
         conversation_id = f"cricut-{job_id[:12]}"

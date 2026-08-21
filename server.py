@@ -21,6 +21,7 @@ from werkzeug.utils import secure_filename
 
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import hashlib
 import json
@@ -135,6 +136,7 @@ ALLOW_IP_AUTOLOGIN = os.environ.get(
 STAFF_PASSWORD = os.environ.get("STAFF_PASSWORD", "")
 STAFF_SESSION_SECONDS = 8 * 60 * 60
 STAFF_ACTIVE_WINDOW_SECONDS = 10 * 60
+FREE_DAILY_IMAGE_LIMIT = 3
 
 
 # ============================================================
@@ -184,6 +186,16 @@ def utc_now():
     return datetime.now(
         timezone.utc
     ).isoformat()
+
+
+def quota_day():
+    """Jour du quota en heure française, avec repli sur UTC si nécessaire."""
+    try:
+        return datetime.now(ZoneInfo("Europe/Paris")).date().isoformat()
+    except ZoneInfoNotFoundError:
+        # Certaines installations Windows n'ont pas la base tzdata. Render
+        # fournit normalement le fuseau ; le repli évite tout plantage local.
+        return datetime.now(timezone.utc).date().isoformat()
 
 
 # ============================================================
@@ -645,6 +657,57 @@ def find_user_key(users, username):
     return None
 
 
+def image_quota_status(username, users=None):
+    """Retourne le quota journalier d'images d'un compte (heure de Paris)."""
+    users = users if users is not None else load_json(USERS_FILE, {})
+    user_key = find_user_key(users, username)
+    if not user_key:
+        return None
+
+    user = users[user_key]
+    if user.get("pro_enabled"):
+        return {
+            "user_key": user_key,
+            "is_pro": True,
+            "count": 0,
+            "limit": None,
+            "day": quota_day(),
+        }
+
+    day = quota_day()
+    usage = user.get("image_daily_usage", {})
+    count = usage.get("count", 0) if usage.get("day") == day else 0
+    try:
+        count = max(0, int(count))
+    except (TypeError, ValueError):
+        count = 0
+
+    return {
+        "user_key": user_key,
+        "is_pro": False,
+        "count": count,
+        "limit": FREE_DAILY_IMAGE_LIMIT,
+        "day": day,
+    }
+
+
+def consume_image_generation(username):
+    """Compte une demande d'image seulement après son envoi à Discord."""
+    users = load_json(USERS_FILE, {})
+    quota = image_quota_status(username, users)
+    if not quota or quota["is_pro"]:
+        return quota
+
+    user = users[quota["user_key"]]
+    user["image_daily_usage"] = {
+        "day": quota["day"],
+        "count": quota["count"] + 1,
+    }
+    save_json(USERS_FILE, users)
+    quota["count"] += 1
+    return quota
+
+
 # ============================================================
 # ENREGISTRER IP DU COMPTE
 # ============================================================
@@ -785,6 +848,61 @@ def remove_user_account(username):
     return True
 
 
+def remove_all_user_conversations(username):
+    """Efface les discussions d'un compte, y compris leurs salons Discord."""
+    # Comme pour la suppression du compte, ne pas supprimer la copie locale
+    # tant que Discord n'a pas confirmé la suppression de ses salons.
+    discord_bridge.delete_user_conversations(username)
+
+    conversations = load_json(CONVERSATIONS_FILE, {})
+    owner_key = next(
+        (key for key in conversations if key.casefold() == username.casefold()),
+        None,
+    )
+    count = len(conversations.get(owner_key, [])) if owner_key else 0
+    if owner_key:
+        del conversations[owner_key]
+        save_json(CONVERSATIONS_FILE, conversations)
+    return count
+
+
+def staff_dashboard_stats(accounts):
+    """Calcule des statistiques globales sans exposer de données sensibles."""
+    conversations = load_json(CONVERSATIONS_FILE, {})
+    conversation_count = 0
+    message_count = 0
+    generated_image_count = 0
+
+    for items in conversations.values():
+        if not isinstance(items, list):
+            continue
+        conversation_count += len(items)
+        for conversation in items:
+            messages = conversation.get("messages", []) if isinstance(conversation, dict) else []
+            if not isinstance(messages, list):
+                continue
+            message_count += len(messages)
+            for message in messages:
+                if not isinstance(message, dict):
+                    continue
+                if message.get("image_url"):
+                    generated_image_count += 1
+                generated_image_count += len(message.get("cricut_images", []) or [])
+
+    return {
+        "accounts": len(accounts),
+        "active": sum(account["active"] for account in accounts),
+        "banned": sum(bool(account["banned_until"]) for account in accounts),
+        "cricut_accounts": sum(
+            1 for details in load_json(USERS_FILE, {}).values()
+            if details.get("cricut_enabled")
+        ),
+        "conversations": conversation_count,
+        "messages": message_count,
+        "images": generated_image_count,
+    }
+
+
 def staff_is_authenticated():
     now_timestamp = int(datetime.now(timezone.utc).timestamp())
     return bool(STAFF_PASSWORD) and int(
@@ -814,7 +932,7 @@ def render_staff_dashboard(temporary_password=None, temporary_username=None):
         "staff.html",
         authenticated=True,
         accounts=accounts,
-        active_count=sum(account["active"] for account in accounts),
+        stats=staff_dashboard_stats(accounts),
         active_window_minutes=STAFF_ACTIVE_WINDOW_SECONDS // 60,
         staff_csrf_token=get_staff_csrf_token(),
         temporary_password=temporary_password,
@@ -1759,6 +1877,24 @@ def staff_account_action(username, action):
         flash(f"Bannissement retirÃ© pour {user_key}.", "success")
         return redirect(url_for("staff_panel"))
 
+    if action == "delete-conversations":
+        confirmation = request.form.get("confirm_delete_conversations", "").strip()
+        if confirmation != "SUPPRIMER":
+            flash("Écris SUPPRIMER pour confirmer l'effacement des discussions.", "error")
+            return redirect(url_for("staff_panel"))
+
+        try:
+            count = remove_all_user_conversations(user_key)
+        except RuntimeError as error:
+            flash(str(error), "error")
+            return redirect(url_for("staff_panel"))
+
+        flash(
+            f"{count} discussion(s) et leurs salons Discord ont été supprimés pour {user_key}.",
+            "success",
+        )
+        return redirect(url_for("staff_panel"))
+
     if action == "delete":
         confirmation = request.form.get("confirm_username", "").strip()
         if confirmation.casefold() != user_key.casefold():
@@ -1825,10 +1961,41 @@ def discord_turn():
             "message": "Compte Cricut activé.",
         })
 
+    # La commande Pro est traitée localement afin de ne jamais être envoyée
+    # au bot Discord ni conservée dans la discussion.
+    if question == "PRO_ACCOUNT=True":
+        users = load_json(USERS_FILE, {})
+        user_key = find_user_key(users, username)
+        if not user_key:
+            return jsonify({"error": "Compte introuvable."}), 404
+
+        users[user_key]["pro_enabled"] = True
+        users[user_key]["pro_enabled_at"] = utc_now()
+        save_json(USERS_FILE, users)
+        delete_conversation(user_key, conversation_id)
+        discord_bridge.delete_conversation(user_key, conversation_id)
+        return jsonify({
+            "pro_activated": True,
+            "message": "Compte Pro activé : tes générations d'images sont illimitées.",
+        })
+
     try:
         reference_images = get_reference_images()
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
+
+    expects_image = is_image_generation_request(
+        question,
+        bool(reference_images),
+    )
+    quota = image_quota_status(username)
+    if expects_image and quota and not quota["is_pro"] and quota["count"] >= quota["limit"]:
+        return jsonify({
+            "error": (
+                f"Limite quotidienne atteinte : {quota['limit']}/{quota['limit']} images. "
+                "Active ton compte Pro avec PRO_ACCOUNT=True pour des générations illimitées."
+            )
+        }), 429
 
     save_conversation_message(
         username,
@@ -1843,10 +2010,7 @@ def discord_turn():
             conversation_id,
             question,
             reference_images,
-            expects_image=is_image_generation_request(
-                question,
-                bool(reference_images)
-            ),
+            expects_image=expects_image,
         )
     except RuntimeError as error:
         save_conversation_message(
@@ -1866,7 +2030,13 @@ def discord_turn():
         )
         return jsonify({"error": "Impossible d'envoyer la question à Discord."}), 502
 
-    return jsonify({"job_id": job_id})
+    if expects_image:
+        quota = consume_image_generation(username)
+
+    return jsonify({
+        "job_id": job_id,
+        "image_quota": quota,
+    })
 
 
 @app.route("/api/cricut/start", methods=["POST"])
@@ -1889,6 +2059,15 @@ def start_cricut_job():
     if len(reference_images) != 1:
         return jsonify({"error": "Ajoute exactement une image à adapter en stickers."}), 400
 
+    quota = image_quota_status(user_key, users)
+    if quota and not quota["is_pro"] and quota["count"] >= quota["limit"]:
+        return jsonify({
+            "error": (
+                f"Limite quotidienne atteinte : {quota['limit']}/{quota['limit']} images. "
+                "Active ton compte Pro avec PRO_ACCOUNT=True pour des générations illimitées."
+            )
+        }), 429
+
     try:
         job_id = discord_bridge.start_cricut_job(user_key, reference_images[0])
     except RuntimeError as error:
@@ -1905,7 +2084,12 @@ def start_cricut_job():
         f"✦ Adaptation Cricut : {reference_images[0]['filename']}",
     )
 
-    return jsonify({"job_id": job_id, "conversation_id": conversation_id})
+    quota = consume_image_generation(user_key)
+    return jsonify({
+        "job_id": job_id,
+        "conversation_id": conversation_id,
+        "image_quota": quota,
+    })
 
 
 @app.route("/api/discord/jobs/<job_id>/events")

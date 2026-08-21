@@ -671,6 +671,17 @@ async function startDiscordTurn(question, referenceImages = []) {
             return;
         }
 
+        if (payload.pro_activated) {
+            finishDiscordTurn();
+            hideThinking();
+            removeImageGeneration();
+            messages.innerHTML = "";
+            welcome.style.display = "none";
+            addAssistantMessage(payload.message || "Compte Pro activé.");
+            loadConversations();
+            return;
+        }
+
 
         listenForDiscordEvents(payload.job_id);
         loadConversations();
@@ -679,10 +690,23 @@ async function startDiscordTurn(question, referenceImages = []) {
 
     catch (error) {
 
+        const retryIsImage = currentTurnIsImage;
         finishDiscordTurn();
         hideThinking();
         removeImageGeneration();
-        addAssistantMessage(error.message || "Connexion Discord impossible.");
+        showErrorMessage(
+            error.message || "Connexion Discord impossible.",
+            () => {
+                currentTurnIsImage = retryIsImage;
+                if (retryIsImage) {
+                    showImageGeneration();
+                }
+                else {
+                    showThinking();
+                }
+                startDiscordTurn(question, referenceImages);
+            }
+        );
         loadConversations();
     }
 }
@@ -769,7 +793,7 @@ function listenForDiscordEvents(jobId) {
             finishDiscordTurn();
             hideThinking();
             removeImageGeneration();
-            addAssistantMessage("La connexion au bot Discord a été interrompue.");
+            showErrorMessage("La connexion au bot Discord a été interrompue.");
             loadConversations();
         }
     };
@@ -819,6 +843,43 @@ function addAssistantMessage(text) {
 
     message.appendChild(bubble);
     messages.appendChild(message);
+    scrollToBottom();
+}
+
+
+function showErrorMessage(text, onRetry = null) {
+
+    const card = document.createElement("section");
+    card.className = "chat-error-card";
+    card.setAttribute("role", "alert");
+    card.innerHTML = `
+        <span class="chat-error-orbit orbit-one"></span>
+        <span class="chat-error-orbit orbit-two"></span>
+        <span class="chat-error-particle particle-one">✦</span>
+        <span class="chat-error-particle particle-two">·</span>
+        <div class="chat-error-icon">!</div>
+        <div class="chat-error-copy"><strong>Une connexion a besoin d’attention</strong><p></p></div>
+    `;
+    card.querySelector("p").textContent = text;
+
+    if (typeof onRetry === "function") {
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.className = "chat-error-retry";
+        retry.textContent = "↻ Réessayer";
+        retry.addEventListener("click", () => {
+            retry.disabled = true;
+            retry.textContent = "Reconnexion…";
+            card.classList.add("is-retrying");
+            window.setTimeout(() => {
+                card.remove();
+                onRetry();
+            }, 420);
+        });
+        card.appendChild(retry);
+    }
+
+    messages.appendChild(card);
     scrollToBottom();
 }
 
@@ -4097,7 +4158,10 @@ async function startCricutJob(file) {
     catch (error) {
         finishDiscordTurn();
         removeCricutGeneration();
-        addAssistantMessage(error.message || "Impossible de démarrer le mode Cricut.");
+        showErrorMessage(
+            error.message || "Impossible de démarrer le mode Cricut.",
+            () => startCricutJob(file)
+        );
     }
 }
 
